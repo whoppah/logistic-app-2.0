@@ -1,6 +1,4 @@
 #backend/logistics/services/delta_checker.py
-# backend/logistics/services/delta_checker.py
-
 import pandas as pd
 from logistics.services.spreadsheet_exporter import SpreadsheetExporter
 from logistics.services.database_service import DatabaseService
