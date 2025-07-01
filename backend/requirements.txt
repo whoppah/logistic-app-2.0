@@ -13,4 +13,4 @@ redis
 gunicorn
 python-dotenv
 sqlalchemy>=1.4
-
+psycopg2-binary
