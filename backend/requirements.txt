@@ -10,3 +10,4 @@ XlsxWriter
 redis                  
 gunicorn
 python-dotenv          
+django-vite
