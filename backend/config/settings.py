@@ -36,7 +36,7 @@ DJANGO_VITE = {
     "dev_server_host": "localhost",
     "dev_server_port": 5173,
     "static_url_prefix": "dashboard/",
-    "build_dir": BASE_DIR / "frontend" / "dist",
+    "build_dir": str(BASE_DIR / "frontend" / "dist"),
 }
 
 
