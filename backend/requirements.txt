@@ -12,4 +12,5 @@ celery
 redis
 gunicorn
 python-dotenv
+sqlalchemy>=1.4
 
