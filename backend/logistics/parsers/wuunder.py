@@ -1,4 +1,4 @@
-#backend/logistics/tasks/wuunder.py
+#backend/logistics/parsers/wuunder.py
 import pandas as pd
 import pdfplumber
 import re
