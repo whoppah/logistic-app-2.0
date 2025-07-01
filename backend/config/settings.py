@@ -32,12 +32,12 @@ INSTALLED_APPS = [
 
 # Django vite
 DJANGO_VITE = {
-    "dev_mode": True,
     "dev_server_host": "localhost",
     "dev_server_port": 5173,
     "static_url_prefix": "dashboard/",
     "build_dir": str(BASE_DIR / "frontend" / "dist"),
 }
+
 
 
 # Middleware
