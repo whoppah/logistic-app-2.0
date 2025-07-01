@@ -12,7 +12,7 @@ class SlackService:
         self.token = bot_token or settings.SLACK_BOT_TOKEN
         self.channel = channel_id or settings.SLACK_CHANNEL_ID
         self.client = WebClient(token=self.token)
-        self.save_path = os.path.join(settings.BASE_DIR, "backend", "logistics", "Slack")
+        self.save_path = os.path.join(settings.BASE_DIR, "backend", "logistics", "slack")
         os.makedirs(self.save_path, exist_ok=True)
 
     def get_latest_messages(self, limit=10):
