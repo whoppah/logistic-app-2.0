@@ -1,5 +1,6 @@
 Django>=4.2
 djangorestframework
+django-vite
 dj-database-url
 psycopg2-binary
 python-decouple
@@ -8,7 +9,8 @@ openpyxl
 pdfplumber
 PyMuPDF>=1.22.0
 XlsxWriter
+celery
 redis
 gunicorn
 python-dotenv
-django-vite
+
