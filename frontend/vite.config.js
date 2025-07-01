@@ -10,10 +10,10 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist',
-    manifest: true,
+    outDir: 'dist',  
+    manifest: true, 
     rollupOptions: {
-      input: '/src/main.jsx',
+      input: '/src/main.jsx',  
     },
   },
   server: {
@@ -22,3 +22,4 @@ export default defineConfig({
     origin: 'http://localhost:5173',
   },
 });
+
