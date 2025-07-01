@@ -38,7 +38,6 @@ DJANGO_VITE = {
     "build_dir_name": "dist",  
 }
 
-print("DEBUG DJANGO_VITE TYPE:", type(DJANGO_VITE), DJANGO_VITE)
 
 # Middleware
 MIDDLEWARE = [
