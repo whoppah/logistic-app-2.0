@@ -1,4 +1,4 @@
-#backend/logistics/tasks/base_parser.py
+#backend/logistics/parsers/base_parser.py
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 import pandas as pd
