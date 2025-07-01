@@ -22,22 +22,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_vite",
     # Third-party
     "rest_framework",
 
     # Local
     "logistics",
 ]
-
-# Django vite
-DJANGO_VITE = {
-    "dev_server_host": "localhost",
-    "dev_server_port": 5173,
-    "static_url_prefix": "dashboard/",
-    "build_dir_name": "dist",  
-}
-
 
 # Middleware
 MIDDLEWARE = [
