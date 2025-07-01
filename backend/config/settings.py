@@ -1,8 +1,9 @@
 #backend/config/settings.py
 import os
+import dj_database_url
 from pathlib import Path
 from decouple import config
-import dj_database_url
+from pathlib import Path
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -21,13 +22,23 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
+    "django_vite",
     # Third-party
     "rest_framework",
 
     # Local
     "logistics",
 ]
+
+# Django vite
+DJANGO_VITE = {
+    "dev_mode": os.getenv("DJANGO_VITE_DEV", "true") == "true",  
+    "dev_server_host": "localhost",
+    "dev_server_port": 5173,
+    "static_url_prefix": "dashboard/",
+    "build_dir": BASE_DIR / "frontend" / "dist",  
+}
+
 
 # Middleware
 MIDDLEWARE = [
@@ -101,6 +112,9 @@ USE_TZ = True
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [
+    BASE_DIR / "frontend" / "dist",  
+]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
