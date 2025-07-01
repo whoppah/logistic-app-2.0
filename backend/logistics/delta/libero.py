@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import os
 import json
+from django.conf import settings
 
 class LiberoDeltaCalculator(BaseDeltaCalculator):
     def compute(self):
@@ -13,7 +14,7 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
         )
 
         df_merged["weight"] = df_merged["weight"].astype(float).apply(lambda x: format(x, '.2f'))
-        base_price_path = os.path.join(os.getcwd(), "Facturen_Logistiek", "prijslijst_other_partners.json")
+        base_price_path = os.path.join(settings.PRICING_DATA_PATH, "prijslijst_other_partners.json")
         df_price = pd.read_json(base_price_path)
         df_price["Weightclass"] = df_price["Weightclass"].astype(float).apply(lambda x: format(x, '.2f'))
         prices = []
@@ -49,9 +50,7 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
 
     def _get_germany_prices(self, df):
         """Compute fallback prices for DE/NL postal codes from dedicated JSON."""
-        path = os.path.join(os.getcwd(), "Facturen_Logistiek", "germany_libero_logistic.json")
-        df_price_de = pd.read_json(path)
-
+        path = os.path.join(settings.PRICING_DATA_PATH,"germany_libero_logistic.json")
         postal_codes_ruhrNL = set([
             "DE40", "DE41", "DE42", "DE44", "DE45", "DE46", "DE47", "DE50",
             "NL10", "NL11", "NL12", "NL13", "NL14", "NL15", "NL16", "NL17", "NL18", "NL19"
