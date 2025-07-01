@@ -3,12 +3,13 @@ from .base import BaseDeltaCalculator
 import pandas as pd
 import os
 import json
+from django.config import settings
 
 
 class WuunderDeltaCalculator(BaseDeltaCalculator):
     def __init__(self, df_invoice: pd.DataFrame, df_order: pd.DataFrame, price_file: str = None):
         super().__init__(df_invoice, df_order)
-        self.price_file = price_file or "pricing/prijslijst_wuunder.json"
+        self.price_file = price_file or os.path.join(settings.PRICING_DATA_PATH, "prijslijst_wuunder.json")
         self.df_price = self._load_price_list()
 
     def _load_price_list(self) -> pd.DataFrame:
