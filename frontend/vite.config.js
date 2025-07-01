@@ -10,23 +10,15 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../backend/static/dashboard', // Adjust this if your static directory is different
-    emptyOutDir: true,
+    outDir: 'dist',
     manifest: true,
     rollupOptions: {
-      input: './index.html',
+      input: '/src/main.jsx',
     },
   },
   server: {
     host: 'localhost',
     port: 5173,
-    open: true,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000', // Django runs on 8000
-        changeOrigin: true,
-        secure: false,
-      },
-    },
+    origin: 'http://localhost:5173',
   },
 });
