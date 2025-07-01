@@ -1,5 +1,6 @@
 #backend/logistics/delta/brenger.py
 import pandas as pd
+from django.conf import settings
 import json
 import os
 
@@ -8,7 +9,8 @@ class BrengerDeltaCalculator:
     def __init__(self, df_invoice: pd.DataFrame, df_order: pd.DataFrame, price_file: str = None):
         self.df_invoice = df_invoice
         self.df_order = df_order
-        self.price_file = price_file or os.path.join("pricing", "prijslijst_brenger.json")
+        self.price_file = price_file or os.path.join(settings.PRICING_DATA_PATH, "prijslijst_brenger.json")
+
         self.df_price = self._load_price_list()
 
     def _load_price_list(self) -> pd.DataFrame:
