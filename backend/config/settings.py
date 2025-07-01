@@ -38,7 +38,7 @@ DJANGO_VITE = {
     "build_dir": str(BASE_DIR / "frontend" / "dist"),
 }
 
-
+print("DEBUG DJANGO_VITE TYPE:", type(DJANGO_VITE), DJANGO_VITE)
 
 # Middleware
 MIDDLEWARE = [
