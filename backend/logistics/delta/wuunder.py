@@ -3,7 +3,7 @@ from .base import BaseDeltaCalculator
 import pandas as pd
 import os
 import json
-from django.config import settings
+from django.conf import settings
 
 
 class WuunderDeltaCalculator(BaseDeltaCalculator):
