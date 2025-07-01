@@ -11,3 +11,4 @@ redis
 gunicorn
 python-dotenv          
 django-vite
+gunicorn
