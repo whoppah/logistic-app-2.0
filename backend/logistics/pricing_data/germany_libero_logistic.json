@@ -1,0 +1,398 @@
+[
+    {
+        "CMS category": "2-seaters",
+        "DE": 119
+    },
+    {
+        "CMS category": "3-5-seaters",
+        "DE": 169
+    },
+    {
+        "CMS category": "acoustic-sofa",
+        "DE": 169
+    },
+    {
+        "CMS category": "adjustable-recliner-chair",
+        "DE": 119
+    },
+    {
+        "CMS category": "armchairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "art-prints",
+        "DE": 79
+    },
+    {
+        "CMS category": "bar-carts",
+        "DE": 79
+    },
+    {
+        "CMS category": "barstools",
+        "DE": 79
+    },
+    {
+        "CMS category": "bean-bags",
+        "DE": 79
+    },
+    {
+        "CMS category": "benches",
+        "DE": 79
+    },
+    {
+        "CMS category": "bookcases",
+        "DE": 169
+    },
+    {
+        "CMS category": "bowls",
+        "DE": 79
+    },
+    {
+        "CMS category": "candle-holders",
+        "DE": 79
+    },
+    {
+        "CMS category": "ceiling-lights",
+        "DE": 79
+    },
+    {
+        "CMS category": "chaise-longue",
+        "DE": 119
+    },
+    {
+        "CMS category": "chandeliers",
+        "DE": 79
+    },
+    {
+        "CMS category": "chest-of-drawers",
+        "DE": 119
+    },
+    {
+        "CMS category": "clocks",
+        "DE": 79
+    },
+    {
+        "CMS category": "coat-racks",
+        "DE": 79
+    },
+    {
+        "CMS category": "coffee-table-books",
+        "DE": 79
+    },
+    {
+        "CMS category": "coffee-tables",
+        "DE": 79
+    },
+    {
+        "CMS category": "column",
+        "DE": 79
+    },
+    {
+        "CMS category": "conference-chairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "conference-table",
+        "DE": 169
+    },
+    {
+        "CMS category": "consoles",
+        "DE": 79
+    },
+    {
+        "CMS category": "corner-sofas",
+        "DE": 169
+    },
+    {
+        "CMS category": "couches",
+        "DE": 169
+    },
+    {
+        "CMS category": "crockery",
+        "DE": 79
+    },
+    {
+        "CMS category": "cutlery-sets",
+        "DE": 79
+    },
+    {
+        "CMS category": "daybeds",
+        "DE": 119
+    },
+    {
+        "CMS category": "decorative-objects",
+        "DE": 79
+    },
+    {
+        "CMS category": "desk",
+        "DE": 119
+    },
+    {
+        "CMS category": "desk-lamps",
+        "DE": 79
+    },
+    {
+        "CMS category": "dining-chairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "dining-set",
+        "DE": 169
+    },
+    {
+        "CMS category": "dining-tables",
+        "DE": 119
+    },
+    {
+        "CMS category": "display-cabinets",
+        "DE": 169
+    },
+    {
+        "CMS category": "double-beds",
+        "DE": 169
+    },
+    {
+        "CMS category": "dressing-tables",
+        "DE": 119
+    },
+    {
+        "CMS category": "filing-cabinets",
+        "DE": 119
+    },
+    {
+        "CMS category": "floor-lights",
+        "DE": 79
+    },
+    {
+        "CMS category": "folding-chairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "footstools-poufs",
+        "DE": 79
+    },
+    {
+        "CMS category": "frames",
+        "DE": 79
+    },
+    {
+        "CMS category": "garden-accessoires",
+        "DE": 79
+    },
+    {
+        "CMS category": "garden-benches",
+        "DE": 119
+    },
+    {
+        "CMS category": "garden-chairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "garden-sets",
+        "DE": 169
+    },
+    {
+        "CMS category": "garden-tables",
+        "DE": 119
+    },
+    {
+        "CMS category": "glass-art",
+        "DE": 79
+    },
+    {
+        "CMS category": "glass-decanter",
+        "DE": 79
+    },
+    {
+        "CMS category": "high-boards",
+        "DE": 169
+    },
+    {
+        "CMS category": "kitchen-accessories",
+        "DE": 79
+    },
+    {
+        "CMS category": "liquor-cabinets",
+        "DE": 119
+    },
+    {
+        "CMS category": "lithographs-prints",
+        "DE": 79
+    },
+    {
+        "CMS category": "lounge-sets",
+        "DE": 169
+    },
+    {
+        "CMS category": "loveseats",
+        "DE": 119
+    },
+    {
+        "CMS category": "magazine-rack",
+        "DE": 79
+    },
+    {
+        "CMS category": "mirrors",
+        "DE": 79
+    },
+    {
+        "CMS category": "modular-sofas",
+        "DE": 169
+    },
+    {
+        "CMS category": "nightstands",
+        "DE": 79
+    },
+    {
+        "CMS category": "office-chairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "paintings-drawings",
+        "DE": 79
+    },
+    {
+        "CMS category": "pendant-lamps",
+        "DE": 79
+    },
+    {
+        "CMS category": "phone-booth",
+        "DE": 119
+    },
+    {
+        "CMS category": "photo-frames",
+        "DE": 79
+    },
+    {
+        "CMS category": "photography",
+        "DE": 79
+    },
+    {
+        "CMS category": "pillows",
+        "DE": 79
+    },
+    {
+        "CMS category": "plant-pot",
+        "DE": 79
+    },
+    {
+        "CMS category": "plant-table",
+        "DE": 79
+    },
+    {
+        "CMS category": "posters",
+        "DE": 79
+    },
+    {
+        "CMS category": "reading-lamp",
+        "DE": 79
+    },
+    {
+        "CMS category": "rocking-chairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "room-screens",
+        "DE": 79
+    },
+    {
+        "CMS category": "rugs-carpets",
+        "DE": 79
+    },
+    {
+        "CMS category": "sculpture",
+        "DE": 79
+    },
+    {
+        "CMS category": "seating-area",
+        "DE": 169
+    },
+    {
+        "CMS category": "shelving-unit",
+        "DE": 79
+    },
+    {
+        "CMS category": "side-chairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "side-tables",
+        "DE": 79
+    },
+    {
+        "CMS category": "sideboard",
+        "DE": 169
+    },
+    {
+        "CMS category": "sideboard-cabinet",
+        "DE": 169
+    },
+    {
+        "CMS category": "single-beds",
+        "DE": 119
+    },
+    {
+        "CMS category": "sofa-beds",
+        "DE": 119
+    },
+    {
+        "CMS category": "spot-lights",
+        "DE": 79
+    },
+    {
+        "CMS category": "stools",
+        "DE": 79
+    },
+    {
+        "CMS category": "storage-cabinet",
+        "DE": 79
+    },
+    {
+        "CMS category": "sunbed",
+        "DE": 119
+    },
+    {
+        "CMS category": "swivel-chairs",
+        "DE": 79
+    },
+    {
+        "CMS category": "table-accessories",
+        "DE": 79
+    },
+    {
+        "CMS category": "table-lamps",
+        "DE": 79
+    },
+    {
+        "CMS category": "tv-furniture",
+        "DE": 119
+    },
+    {
+        "CMS category": "umbrella-stand",
+        "DE": 79
+    },
+    {
+        "CMS category": "vases",
+        "DE": 79
+    },
+    {
+        "CMS category": "wall-cabinet",
+        "DE": 169
+    },
+    {
+        "CMS category": "wall-decoration",
+        "DE": 79
+    },
+    {
+        "CMS category": "wall-lights",
+        "DE": 79
+    },
+    {
+        "CMS category": "wardrobes",
+        "DE": 169
+    },
+    {
+        "CMS category": "wine-racks",
+        "DE": 79
+    }
+]
