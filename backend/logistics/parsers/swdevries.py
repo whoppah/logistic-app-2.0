@@ -1,4 +1,4 @@
-#backend/logistics/tasks/swdevries.py
+#backend/logistics/parsers/swdevries.py
 import pandas as pd
 import io
 from .base_parser import BaseParser
