@@ -13,3 +13,10 @@ gunicorn
 python-dotenv
 sqlalchemy>=1.4
 psycopg2-binary
+numpy
+requests
+gspread
+oauth2client
+gspread-dataframe
+gspread-formatting
+slack-sdk
