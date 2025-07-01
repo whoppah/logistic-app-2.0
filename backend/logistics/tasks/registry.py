@@ -1,6 +1,4 @@
 #backend/logistics/tasks/registry.py
-# logistics/tasks/registry.py
-
 from .brenger import BrengerParser
 from .swdevries import SwdevriesParser
 from .libero import LiberoParser
