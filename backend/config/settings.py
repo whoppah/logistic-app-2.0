@@ -79,8 +79,14 @@ DATABASES = {
     "default": dj_database_url.config(default=config("DATABASE_URL"))
 }
 
-# Redis (Celery / Cache)
+# Redis 
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/0")
+
+# Celery 
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
 
 # Cache
 CACHES = {
@@ -89,10 +95,6 @@ CACHES = {
         "LOCATION": REDIS_URL,
     }
 }
-
-# Celery (if used)
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
