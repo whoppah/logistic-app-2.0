@@ -13,7 +13,7 @@ export default defineConfig({
     outDir: 'dist',  
     manifest: true, 
     rollupOptions: {
-      input: '/src/main.jsx',  
+      input: path.resolve(__dirname, 'src/main.jsx'),
     },
   },
   server: {
