@@ -32,11 +32,11 @@ INSTALLED_APPS = [
 
 # Django vite
 DJANGO_VITE = {
-    "dev_mode": os.getenv("DJANGO_VITE_DEV", "true") == "true",  
+    "dev_mode": config("DJANGO_VITE_DEV", default=True, cast=bool),
     "dev_server_host": "localhost",
     "dev_server_port": 5173,
     "static_url_prefix": "dashboard/",
-    "build_dir": BASE_DIR / "frontend" / "dist",  
+    "build_dir": BASE_DIR / "frontend" / "dist",
 }
 
 
