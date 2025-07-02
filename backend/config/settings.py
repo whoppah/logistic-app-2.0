@@ -65,8 +65,17 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
 DATABASES = {
-    "default": dj_database_url.config(default=config("DATABASE_URL"))
+    "default": dj_database_url.config(default=config("RAILWAY_DATABASE_URL")),  
+    "external": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("EXTERNAL_DB_NAME"),
+        "USER": config("EXTERNAL_DB_USER"),
+        "PASSWORD": config("EXTERNAL_DB_PASSWORD"),
+        "HOST": config("EXTERNAL_DB_HOST"),
+        "PORT": config("EXTERNAL_DB_PORT", default=5432, cast=int),
+    }
 }
+
 
 # Redis 
 REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/0")
