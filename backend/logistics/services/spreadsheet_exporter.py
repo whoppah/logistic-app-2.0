@@ -14,7 +14,7 @@ class SpreadsheetExporter:
             "https://spreadsheets.google.com/feeds",
             "https://www.googleapis.com/auth/drive"
         ]
-        json_path = os.path.join(BASE_DATA_PATH, "upbeat-flame-451212-j5-8d545d206f5e.json")
+        json_path = os.path.join(settings.PRICING_DATA_PATH, "upbeat-flame-451212-j5-8d545d206f5e.json")
         creds = ServiceAccountCredentials.from_json_keyfile_name(json_path, self.scope)
         self.client = gspread.authorize(creds)
         self.spreadsheet_name = spreadsheet_name
