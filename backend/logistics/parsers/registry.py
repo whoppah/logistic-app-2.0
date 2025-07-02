@@ -8,5 +8,5 @@ parser_registry = {
     "brenger": BrengerParser,
     "swdevries": SwdevriesParser,
     "libero": LiberoParser,
-    "wuunder": WunderParser,
+    "wuunder": WuunderParser,
 }
