@@ -5,7 +5,7 @@ import gspread
 from gspread_formatting import CellFormat, Color, format_cell_range
 from gspread_dataframe import set_with_dataframe
 from oauth2client.service_account import ServiceAccountCredentials
-from django.config import settings
+from django.conf import settings
 
 
 class SpreadsheetExporter:
