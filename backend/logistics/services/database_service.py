@@ -1,10 +1,10 @@
 #backend/logistics/services/database_service.py
-import os
 import time
 import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import OperationalError
+from django.conf import settings
 
 
 class DatabaseService:
@@ -12,18 +12,22 @@ class DatabaseService:
         self.engine = self._build_engine()
 
     def _build_engine(self):
+        """
+        Use Django's DATABASES['external'] settings to configure the SQLAlchemy engine
+        """
+        db = settings.DATABASES["external"]
+
         db_url = URL.create(
             drivername="postgresql+psycopg2",
-            username=os.getenv('POSTGRES_USER'),
-            password=os.getenv('POSTGRES_PASSWORD'),
-            host=os.getenv('POSTGRES_HOST'),
-            port=int(os.getenv('POSTGRES_PORT', 5432)),
-            database=os.getenv('POSTGRES_DB')
+            username=db["USER"],
+            password=db["PASSWORD"],
+            host=db["HOST"],
+            port=db["PORT"],
+            database=db["NAME"]
         )
-        return create_engine(db_url)
+        return create_engine(db_url, pool_pre_ping=True)
 
     def execute_query_with_retries(self, query, max_retries=5, delay=15):
-        """Execute a SQL query with retry logic to handle transient failures."""
         attempt = 0
         while attempt < max_retries:
             try:
@@ -31,18 +35,17 @@ class DatabaseService:
                     result = connection.execute(text(query))
                     return pd.DataFrame(result.fetchall(), columns=result.keys())
             except OperationalError as e:
-                print(f"Attempt {attempt + 1} failed: {e}")
+                print(f"⛔ Attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries - 1:
                     time.sleep(delay)
                 else:
-                    print("Max retries reached. Query failed.")
+                    print("❌ Max retries reached. Query failed.")
             attempt += 1
         return pd.DataFrame()
 
     def get_orders_dataframe(self, partner_value: str) -> pd.DataFrame:
         """Query and return a DataFrame of recent orders related to a logistics partner."""
         query = """
-        -- your long query as-is
         SELECT 
             CAST(sales_order.state AS TEXT) AS status,
             CAST(sales_order.id AS TEXT) AS order_id,
