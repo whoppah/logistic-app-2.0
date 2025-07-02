@@ -1,13 +1,14 @@
 #backend/logistics/services/delta_evaluator.py
+import os
 import pandas as pd
+from django.conf import settings
+
 from logistics.delta.brenger import BrengerDeltaCalculator
 from logistics.delta.wuunder import WuunderDeltaCalculator
 from logistics.delta.libero import LiberoDeltaCalculator
 from logistics.delta.swdevries import SwdevriesDeltaCalculator
-from logistics.parsers import (
-    brenger_read_pdf, wuunder_read_pdf,
-    libero_logistics_read_xlsx, swdevries_read_xlsx
-)
+
+from logistics.parsers.registry import parser_registry
 from logistics.services.spreadsheet_exporter import SpreadsheetExporter
 from logistics.services.database_service import DatabaseService
 
@@ -52,22 +53,55 @@ class DeltaEvaluator:
 
     def _get_calculator(self, partner_value: str, redis_key: str, redis_key_pdf: str, df_order: pd.DataFrame):
         """
-        Return the correct calculator and df_invoice based on the partner
+        Return the correct calculator and parsed invoice dataframe
         """
-        if partner_value == "brenger":
-            df_invoice = brenger_read_pdf(redis_key)
-            return BrengerDeltaCalculator(df_invoice, df_order), df_invoice
+        parser_cls = parser_registry.get(partner_value)
+        if not parser_cls:
+            print(f"❌ No parser registered for partner: {partner_value}")
+            return None, None
 
-        elif partner_value == "wuunder":
-            df_invoice = wuunder_read_pdf(redis_key)
-            return WuunderDeltaCalculator(df_invoice, df_order), df_invoice
+        parser = parser_cls()
 
-        elif partner_value == "libero_logistics":
-            df_invoice = libero_logistics_read_xlsx(redis_key, redis_key_pdf)
-            return LiberoDeltaCalculator(df_invoice, df_order), df_invoice
+        try:
+            if partner_value == "libero":
+                if not redis_key_pdf:
+                    raise ValueError("Missing PDF metadata file for Libero.")
+                context = {"pdf_bytes": self._load_file_bytes(redis_key_pdf)}
+                df_invoice = parser.parse(self._load_file_bytes(redis_key), context=context)
+                return LiberoDeltaCalculator(df_invoice, df_order), df_invoice
 
-        elif partner_value == "swdevries":
-            df_invoice = swdevries_read_xlsx(redis_key)
-            return SwdevriesDeltaCalculator(df_invoice, df_order), df_invoice
+            elif partner_value == "swdevries":
+                df_invoice = parser.parse(self._load_file_bytes(redis_key))
+                return SwdevriesDeltaCalculator(df_invoice, df_order), df_invoice
+
+            elif partner_value == "wuunder":
+                df_invoice = parser.parse(self._load_file_bytes(redis_key))
+                return WuunderDeltaCalculator(df_invoice, df_order), df_invoice
+
+            elif partner_value == "brenger":
+                df_invoice = parser.parse(self._load_file_bytes(redis_key))
+                return BrengerDeltaCalculator(df_invoice, df_order), df_invoice
+
+        except Exception as e:
+            print(f"❌ Failed to parse file or initialize calculator for {partner_value}: {e}")
+            return None, None
 
         return None, None
+
+    def _load_file_bytes(self, redis_key: str) -> bytes:
+        """
+        Load the file content for a given redis_key from disk.
+        Tries both .pdf and .xlsx extensions.
+        """
+        base_path = os.path.join(settings.BASE_DIR, "backend", "logistics", "slack")
+        pdf_path = os.path.join(base_path, f"{redis_key}.pdf")
+        xlsx_path = os.path.join(base_path, f"{redis_key}.xlsx")
+
+        if os.path.exists(pdf_path):
+            with open(pdf_path, "rb") as f:
+                return f.read()
+        elif os.path.exists(xlsx_path):
+            with open(xlsx_path, "rb") as f:
+                return f.read()
+        else:
+            raise FileNotFoundError(f"Could not find file for redis key: {redis_key}")
