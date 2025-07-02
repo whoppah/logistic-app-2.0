@@ -1,16 +1,15 @@
 #backend/logistics/services/delta_checker.py
+import os
 import pandas as pd
+from django.conf import settings
+
+from logistics.parsers.registry import parser_registry
 from logistics.services.spreadsheet_exporter import SpreadsheetExporter
 from logistics.services.database_service import DatabaseService
-from logistics.extraction.parsers import (
-    brenger_read_pdf, wuunder_read_pdf,
-    swdevries_read_xlsx, libero_logistics_read_xlsx,
-    transpoksi_read_pdf, magic_movers_read_xlsx
-)
-from logistics.processing.delta import (
-    compute_delta_brenger, compute_delta_wuunder,
-    compute_delta_other_partners, compute_delta_magic_movers
-)
+from logistics.delta.brenger import BrengerDeltaCalculator
+from logistics.delta.wuunder import WuunderDeltaCalculator
+from logistics.delta.libero import LiberoDeltaCalculator
+from logistics.delta.swdevries import SwdevriesDeltaCalculator
 
 
 class DeltaChecker:
@@ -32,64 +31,39 @@ class DeltaChecker:
             partner = partner.strip().lower()
             df_order = self.db_service.get_orders_dataframe(partner)
 
-            handler_map = {
-                "brenger": lambda: self._process(
-                    brenger_read_pdf(redis_key),
-                    lambda df: compute_delta_brenger(df, df_order),
-                    partner,
-                    df_list,
-                    delta_threshold
-                ),
-                "wuunder": lambda: self._process(
-                    wuunder_read_pdf(redis_key),
-                    lambda df: compute_delta_wuunder(df, df_order),
-                    partner,
-                    df_list,
-                    delta_threshold
-                ),
-                "libero_logistics": lambda: self._process(
-                    libero_logistics_read_xlsx(redis_key, redis_key_pdf),
-                    lambda df: compute_delta_other_partners(df, df_order, partner),
-                    partner,
-                    df_list,
-                    delta_threshold
-                ),
-                "swdevries": lambda: self._process(
-                    swdevries_read_xlsx(redis_key),
-                    lambda df: compute_delta_other_partners(df, df_order, partner),
-                    partner,
-                    df_list,
-                    delta_threshold
-                ),
-                "transpoksi": lambda: self._process(
-                    transpoksi_read_pdf(redis_key),
-                    lambda df: compute_delta_other_partners(df, df_order, partner),
-                    partner,
-                    df_list,
-                    delta_threshold
-                ),
-                "magic_movers": lambda: self._process(
-                    magic_movers_read_xlsx(invoice_value=None, date_value=None, redis_key=redis_key),
-                    lambda df: compute_delta_magic_movers(df, df_order, partner),
-                    partner,
-                    df_list,
-                    delta_threshold
-                )
-            }
-
-            handler = handler_map.get(partner)
-            if handler:
-                return handler()
-            else:
+            parser_cls = parser_registry.get(partner)
+            if not parser_cls:
                 print(f"❌ Unsupported partner: {partner}")
                 return False, False
+
+            parser = parser_cls()
+
+            if partner == "libero":
+                if not redis_key_pdf:
+                    raise ValueError("Missing PDF metadata file for Libero.")
+                context = {"pdf_bytes": self._load_file_bytes(redis_key_pdf)}
+                df_invoice = parser.parse(self._load_file_bytes(redis_key), context=context)
+                calculator = LiberoDeltaCalculator(df_invoice, df_order)
+            elif partner == "swdevries":
+                df_invoice = parser.parse(self._load_file_bytes(redis_key))
+                calculator = SwdevriesDeltaCalculator(df_invoice, df_order)
+            elif partner == "wuunder":
+                df_invoice = parser.parse(self._load_file_bytes(redis_key))
+                calculator = WuunderDeltaCalculator(df_invoice, df_order)
+            elif partner == "brenger":
+                df_invoice = parser.parse(self._load_file_bytes(redis_key))
+                calculator = BrengerDeltaCalculator(df_invoice, df_order)
+            else:
+                raise NotImplementedError(f"No calculator configured for partner: {partner}")
+
+            return self._process(df_invoice, calculator.compute, partner, df_list, delta_threshold)
 
         except Exception as e:
             print(f"❌ Error in DeltaChecker.evaluate: {e}")
             return False, False
 
-    def _process(self, df_invoice, delta_fn, partner, df_list, delta_threshold):
-        df_merged, delta_sum, flag = delta_fn(df_invoice)
+    def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
+        df_merged, delta_sum, flag = compute_fn()
 
         if not df_merged.empty:
             df_merged["Type"] = "data"
@@ -112,3 +86,9 @@ class DeltaChecker:
 
         return delta_sum <= delta_threshold, flag
 
+    def _load_file_bytes(self, redis_key: str) -> bytes:
+        path = os.path.join(settings.BASE_DIR, "backend", "logistics", "slack", f"{redis_key}.pdf")
+        if not os.path.exists(path):
+            path = path.replace(".pdf", ".xlsx")  # fallback if it's Excel
+        with open(path, "rb") as f:
+            return f.read()
