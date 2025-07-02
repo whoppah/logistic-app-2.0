@@ -64,7 +64,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
-db_url = config("DATABASE_PUBLIC_URL", default=None)
+db_url = config("DATABASE_URL", default=None)
 
 if not db_url:
     raise Exception("❌ DATABASE_PUBLIC_URL not set in environment!")
