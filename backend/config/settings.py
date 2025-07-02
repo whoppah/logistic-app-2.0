@@ -65,7 +65,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
 DATABASES = {
-    "default": dj_database_url.config(default=config("RAILWAY_DATABASE_URL")),  
+    "default": dj_database_url.parse(
+        f"postgresql://{config('POSTGRES_USER')}:{config('POSTGRES_PASSWORD')}@"
+        f"{config('POSTGRES_HOST')}:{config('POSTGRES_PORT')}/{config('POSTGRES_DB')}"
+    ),
     "external": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": config("EXTERNAL_DB_NAME"),
