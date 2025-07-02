@@ -65,10 +65,14 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
 DATABASES = {
-    "default": dj_database_url.parse(
-        f"postgresql://{config('POSTGRES_USER')}:{config('POSTGRES_PASSWORD')}@"
-        f"{config('POSTGRES_HOST')}:{config('POSTGRES_PORT')}/{config('POSTGRES_DB')}"
-    ),
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('POSTGRES_DB'),
+        'USER': config('POSTGRES_USER'),
+        'PASSWORD': config('POSTGRES_PASSWORD'),
+        'HOST': config('POSTGRES_HOST'),
+        'PORT': config('POSTGRES_PORT'),
+    },
     "external": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": config("EXTERNAL_DB_NAME"),
