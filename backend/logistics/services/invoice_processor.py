@@ -1,5 +1,5 @@
 #backend/logistics/services/invoice_processor.py
-from backend.logistics.services.delta_checker import DeltaCheckerService
+from backend.logistics.services.delta_checker import DeltaChecker
 class InvoiceProcessor:
     def __init__(self, slack_service):
         self.slack = slack_service
@@ -33,7 +33,7 @@ class InvoiceProcessor:
                         redis_key = file_name
 
                 if redis_key:
-                    service = DeltaCheckerService(
+                    service = DeltaChecker(
                         partner_value=partner,
                         redis_key=redis_key,
                         redis_key_pdf=redis_key_pdf or "",
