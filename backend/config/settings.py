@@ -39,6 +39,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 # CORS
+CORS_ALLOW_CREDENTIALS = True  
 CORS_ALLOWED_ORIGINS = [
     "https://logistic-app-20-or-frontend-production.up.railway.app",
 ]
