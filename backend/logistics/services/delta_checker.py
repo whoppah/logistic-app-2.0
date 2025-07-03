@@ -26,18 +26,18 @@ class DeltaChecker:
         file_name: str = "",
         file_name_pdf: str = "",
         delta_threshold: float = 20.0
-    ) -> tuple[bool, bool]:
+    ) -> tuple[bool, bool, pd.DataFrame]:  
         try:
             partner = partner.strip().lower()
             df_order = self.db_service.get_orders_dataframe(partner)
-
+    
             parser_cls = parser_registry.get(partner)
             if not parser_cls:
                 print(f"❌ Unsupported partner: {partner}")
-                return False, False
-
+                return False, False, None  
+    
             parser = parser_cls()
-
+    
             if partner == "libero":
                 if not redis_key_pdf:
                     raise ValueError("Missing PDF metadata file for Libero.")
@@ -55,36 +55,13 @@ class DeltaChecker:
                 calculator = BrengerDeltaCalculator(df_invoice, df_order)
             else:
                 raise NotImplementedError(f"No calculator configured for partner: {partner}")
-
+    
             return self._process(df_invoice, calculator.compute, partner, df_list, delta_threshold)
-
+    
         except Exception as e:
             print(f"❌ Error in DeltaChecker.evaluate: {e}")
-            return False, False
+            return False, False, None   
 
-    def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
-        df_merged, delta_sum, flag = compute_fn()
-
-        if not df_merged.empty:
-            df_merged["Type"] = "data"
-            df_merged["partner"] = partner
-            df_list.append(df_merged)
-        elif delta_sum == 0 and flag:
-            summary = pd.DataFrame([{
-                "Partner": partner,
-                "Delta sum": delta_sum,
-                "Message": "All prices match perfectly",
-                "Type": "summary"
-            }])
-            df_list.append(summary)
-
-        try:
-            url = self.spreadsheet_exporter.export(df_merged, partner)
-            print(f"✅ Exported to Google Sheets: {url}")
-        except Exception as e:
-            print(f"⚠️ Failed to export to Google Sheets: {e}")
-
-        return delta_sum <= delta_threshold, flag
 
     def _load_file_bytes(self, redis_key: str) -> bytes:
         path = os.path.join(settings.BASE_DIR, "backend", "logistics", "slack", f"{redis_key}.pdf")
