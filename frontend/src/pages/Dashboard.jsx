@@ -1,144 +1,179 @@
 // frontend/src/pages/Dashboard.jsx
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import axios from "axios";
+import { UploadCloud } from "lucide-react";
 
-const partnerOptions = ["brenger", "wuunder", "libero", "swdevries"];
+const partnerOptions = [
+  "brenger",
+  "wuunder",
+  "libero",
+  "swdevries",
+  "transpoksi",
+  "magic_movers",
+];
 
 export default function Dashboard() {
-  const [partner, setPartner] = useState("brenger");
+  const [partner, setPartner] = useState(partnerOptions[0]);
+  const [files, setFiles] = useState(null);
+  const [data, setData] = useState([]);
+  const [deltaSum, setDeltaSum] = useState(0);
+  const [deltaOk, setDeltaOk] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [deltaData, setDeltaData] = useState(null);
 
-  const handleUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    const pdfFile = files.find((f) => f.type === "application/pdf");
-    const excelFile = files.find((f) =>
-      ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(
-        f.type
-      )
-    );
+  /** handle file selection or drop */
+  const onFiles = useCallback((fileList) => {
+    setFiles(Array.from(fileList));
+  }, []);
 
-    if (!excelFile && !pdfFile) {
-      setError("Please upload a valid Excel or PDF file.");
+  const handleDrop = (e) => {
+    e.preventDefault();
+    onFiles(e.dataTransfer.files);
+  };
+
+  const handleChange = (e) => {
+    onFiles(e.target.files);
+  };
+
+  const uploadAndCheck = async () => {
+    if (!files || files.length === 0) {
+      setError("Please select at least one file.");
       return;
     }
 
-    const formData = new FormData();
-    if (excelFile) formData.append("file", excelFile);
-    if (pdfFile) formData.append("file", pdfFile);
-
     setLoading(true);
     setError("");
-    setDeltaData(null);
-
     try {
-      // Upload to backend (adapt path if needed)
-      const uploadRes = await axios.post(`${import.meta.env.VITE_API_URL}/logistics/upload/`, formData);
-      const { redis_key, redis_key_pdf } = uploadRes.data;
+      // 1) Upload files
+      const form = new FormData();
+      files.forEach((f) => form.append("file", f));
+      const up = await axios.post(
+        `${import.meta.env.VITE_API_URL}/logistics/upload/`,
+        form
+      );
+      const { redis_key, redis_key_pdf } = up.data;
 
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/logistics/check-delta/`, {
-        partner,
-        redis_key,
-        redis_key_pdf,
-        delta_threshold: 20,
-      });
+      // 2) Check delta
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/logistics/check-delta/`,
+        { partner, redis_key, redis_key_pdf, delta_threshold: 20 }
+      );
 
-      setDeltaData(res.data);
-    } catch (err) {
-      console.error("❌ Delta check failed", err);
-      setError(err.response?.data?.error || "Unexpected error occurred.");
+      setData(res.data.data || []);
+      setDeltaSum(res.data.delta_sum);
+      setDeltaOk(res.data.delta_ok);
+      setSheetUrl(res.data.sheet_url);
+    } catch (e) {
+      setError(e.response?.data?.error || e.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800">Logistics 2.0</h1>
-        <p className="text-gray-500">Upload invoice files and compare pricing data for logistics partners.</p>
+    <div className="ml-64 p-8 space-y-8">
+      <h1 className="text-4xl font-bold text-gray-900">Invoice Dashboard</h1>
+      <p className="text-gray-600">
+        Upload & compare invoices for different logistics partners.
+      </p>
+
+      {/* Partner segmented control */}
+      <div className="flex space-x-2">
+        {partnerOptions.map((p) => (
+          <button
+            key={p}
+            onClick={() => setPartner(p)}
+            className={`px-4 py-2 rounded-lg border
+              ${
+                partner === p
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+              }`}
+          >
+            {p.replace(/_/g, " ").toUpperCase()}
+          </button>
+        ))}
       </div>
 
-      {/* Partner Selector */}
-      <div className="bg-white rounded-lg shadow p-4 w-full md:w-1/2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Select Partner</label>
-        <select
-          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-500"
-          value={partner}
-          onChange={(e) => setPartner(e.target.value)}
-        >
-          {partnerOptions.map((p) => (
-            <option key={p} value={p}>
-              {p.charAt(0).toUpperCase() + p.slice(1)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* File Upload */}
-      <div className="border-dashed border-2 border-gray-300 rounded-lg p-8 text-center bg-white shadow">
+      {/* Drag & drop area */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
+        className="border-2 border-dashed border-gray-300 rounded-xl h-56 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition"
+      >
+        <UploadCloud className="h-12 w-12 text-gray-400" />
+        <p className="mt-2 text-gray-600">Drag & drop invoice files here</p>
+        <p className="text-gray-500 text-sm">.pdf, .xls, .xlsx</p>
         <input
           type="file"
           multiple
           accept=".pdf,.xls,.xlsx"
-          onChange={handleUpload}
-          className="hidden"
-          id="file-upload"
+          onChange={handleChange}
+          className="absolute inset-0 opacity-0 cursor-pointer"
         />
-        <label htmlFor="file-upload" className="cursor-pointer">
-          <div className="text-gray-600">Drag & drop or click to upload invoice files</div>
-          <div className="mt-2 text-sm text-gray-400">Accepted: .pdf, .xls, .xlsx</div>
-        </label>
       </div>
 
-      {/* Feedback */}
-      {loading && <p className="text-gray-500">Processing files, please wait...</p>}
+      <button
+        disabled={loading || !files}
+        onClick={uploadAndCheck}
+        className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+      >
+        {loading ? "Processing…" : "Upload & Analyze"}
+      </button>
+
       {error && <p className="text-red-600">{error}</p>}
 
-      {/* Results */}
-      {deltaData && (
-        <div className="space-y-6">
-          <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row justify-between items-start md:items-center">
+      {/* Summary & link */}
+      {!!data.length && (
+        <div className="bg-white p-6 rounded-xl shadow space-y-4">
+          <div className="flex justify-between items-center">
             <div>
-              <p className="text-lg font-semibold text-gray-700">Delta Summary</p>
-              <p className="text-gray-600 mt-1">Total Delta: <strong>{deltaData.delta_sum}</strong></p>
-              <p className={`mt-1 text-sm ${deltaData.delta_ok ? "text-green-600" : "text-red-600"}`}>
-                {deltaData.delta_ok ? "✅ Within threshold" : "⚠️ Check discrepancies"}
+              <h2 className="text-xl font-semibold text-gray-800">
+                Delta Summary
+              </h2>
+              <p
+                className={`mt-1 text-lg ${
+                  deltaOk ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                Total Delta: {deltaSum.toFixed(2)}{" "}
+                {deltaOk ? "✅" : "⚠️"}
               </p>
             </div>
-            {deltaData.sheet_url && (
+            {sheetUrl && (
               <a
-                href={deltaData.sheet_url}
+                href={sheetUrl}
                 target="_blank"
-                rel="noreferrer"
-                className="mt-4 md:mt-0 text-indigo-600 hover:underline text-sm"
+                rel="noopener"
+                className="text-indigo-600 hover:underline"
               >
-                View Report in Google Sheets
+                View Google Sheet →
               </a>
             )}
           </div>
 
-          <div className="overflow-x-auto bg-white rounded-lg shadow">
-            <table className="min-w-full table-auto text-sm text-left text-gray-700">
-              <thead className="bg-gray-100 text-xs uppercase">
+          {/* Data table */}
+          <div className="overflow-auto">
+            <table className="min-w-full text-sm text-left">
+              <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
                 <tr>
-                  {Object.keys(deltaData.data[0] || {}).map((col) => (
-                    <th key={col} className="px-4 py-2 whitespace-nowrap">
+                  {Object.keys(data[0]).map((col) => (
+                    <th key={col} className="px-4 py-2">
                       {col}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {deltaData.data.map((row, idx) => (
+                {data.map((row, i) => (
                   <tr
-                    key={idx}
+                    key={i}
                     className={row.Delta > 0 ? "bg-green-50" : ""}
                   >
-                    {Object.values(row).map((cell, i) => (
-                      <td key={i} className="px-4 py-2 border-t border-gray-100 whitespace-nowrap">
-                        {typeof cell === "number" ? cell.toFixed(2) : cell}
+                    {Object.values(row).map((val, j) => (
+                      <td key={j} className="px-4 py-2 border-t">
+                        {typeof val === "number" ? val.toFixed(2) : val}
                       </td>
                     ))}
                   </tr>
@@ -151,4 +186,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
