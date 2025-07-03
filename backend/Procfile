@@ -1,0 +1,3 @@
+web:    /app/entrypoint.sh web
+worker: /app/entrypoint.sh worker
+beat:   /app/entrypoint.sh beat
