@@ -1,22 +1,14 @@
 // frontend/src/pages/Dashboard.jsx
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import axios from "axios";
-import { UploadCloud } from "lucide-react";
 
-const partnerOptions = [
-  "brenger",
-  "wuunder",
-  "libero",
-  "swdevries",
-  "transpoksi",
-  "magic_movers",
-];
+import PartnerSelector from "../components/PartnerSelector";
+import FileUploader from "../components/FileUploader";
 
 export default function Dashboard() {
-  const [partner, setPartner] = useState(partnerOptions[0]);
-  const [files, setFiles] = useState(null);
+  const [partner, setPartner] = useState("brenger");
+  const [files, setFiles] = useState([]);
 
-  // Task / result state
   const [taskId, setTaskId] = useState(null);
   const [polling, setPolling] = useState(false);
   const [deltaSum, setDeltaSum] = useState(0);
@@ -31,21 +23,14 @@ export default function Dashboard() {
     setFiles(Array.from(fileList));
   }, []);
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    onFiles(e.dataTransfer.files);
-  };
-  const handleChange = (e) => onFiles(e.target.files);
-
   const startProcess = async () => {
-    if (!files || files.length === 0) {
+    if (!files.length) {
       setError("Please select at least one file.");
       return;
     }
-
     setError("");
     try {
-      // 1) Upload to /logistics/upload/
+      // 1) upload
       const form = new FormData();
       files.forEach((f) => form.append("file", f));
       const up = await axios.post(
@@ -54,7 +39,7 @@ export default function Dashboard() {
       );
       const { redis_key, redis_key_pdf } = up.data;
 
-      // 2) Kick off check‐delta
+      // 2) kick off task
       const kick = await axios.post(
         `${import.meta.env.VITE_API_URL}/logistics/check-delta/`,
         { partner, redis_key, redis_key_pdf, delta_threshold: 20 }
@@ -66,10 +51,8 @@ export default function Dashboard() {
     }
   };
 
-  // Polling effect
   useEffect(() => {
     if (!polling || !taskId) return;
-
     pollRef.current = setInterval(async () => {
       try {
         const status = await axios.get(
@@ -79,72 +62,40 @@ export default function Dashboard() {
         if (status.data.state === "SUCCESS") {
           clearInterval(pollRef.current);
           setPolling(false);
-
-          // 4) fetch the result
           const result = await axios.get(
             `${import.meta.env.VITE_API_URL}/logistics/task-result/`,
             { params: { task_id: taskId } }
           );
           const { delta_ok, parsed_ok, delta_sum, data, sheet_url } = result.data;
-
           setDeltaOk(delta_ok && parsed_ok);
           setDeltaSum(delta_sum);
           setSheetUrl(sheet_url);
           setData(data);
-        }
-        else if (status.data.state === "FAILURE") {
+        } else if (status.data.state === "FAILURE") {
           clearInterval(pollRef.current);
           setPolling(false);
           setError("Processing failed on server.");
         }
-      } catch (err) {
+      } catch {
         clearInterval(pollRef.current);
         setPolling(false);
         setError("Error polling task status.");
       }
-    }, 2000); // every 2s
-
+    }, 2000);
     return () => clearInterval(pollRef.current);
   }, [polling, taskId]);
 
   return (
     <div className="ml-64 p-8 space-y-8">
       <h1 className="text-4xl font-bold">Invoice Dashboard</h1>
-      <div className="flex space-x-2">
-        {partnerOptions.map((p) => (
-          <button
-            key={p}
-            onClick={() => setPartner(p)}
-            className={`px-4 py-2 rounded-lg border ${
-              partner === p
-                ? "bg-indigo-600 text-white"
-                : "bg-white text-gray-700"
-            }`}
-          >
-            {p.replace(/_/g, " ").toUpperCase()}
-          </button>
-        ))}
-      </div>
 
-      <div
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        className="border-2 border-dashed rounded-xl h-56 flex flex-col items-center justify-center hover:bg-gray-100"
-      >
-        <UploadCloud className="h-12 w-12 text-gray-400" />
-        <p>Drag & drop .pdf/.xls/.xlsx here</p>
-        <input
-          type="file"
-          multiple
-          accept=".pdf,.xls,.xlsx"
-          onChange={handleChange}
-          className="absolute inset-0 opacity-0 cursor-pointer"
-        />
-      </div>
+      <PartnerSelector partner={partner} setPartner={setPartner} />
+
+      <FileUploader onFiles={onFiles} files={files} />
 
       <button
         onClick={startProcess}
-        disabled={polling || !files}
+        disabled={polling || !files.length}
         className="px-6 py-3 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
       >
         {polling ? "Processing…" : "Upload & Analyze"}
