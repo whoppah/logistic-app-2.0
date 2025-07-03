@@ -4,7 +4,6 @@ import { useState } from 'react';
 
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
-import Upload from './pages/Upload';
 import Analytics from './pages/Analytics';
 import Slack from './pages/Slack';
 
@@ -25,7 +24,6 @@ export default function App() {
         >
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/upload" element={<Upload />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/slack" element={<Slack />} />
           </Routes>
