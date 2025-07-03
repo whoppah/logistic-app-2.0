@@ -64,13 +64,8 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
-db_url = config("DATABASE_URL", default=None)
-
-if not db_url:
-    raise Exception("❌ DATABASE_PUBLIC_URL not set in environment!")
-
 DATABASES = {
-    "default": dj_database_url.parse(db_url),
+    "default": dj_database_url.parse(config("DATABASE_URL", default="")),
     "external": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": config("EXTERNAL_DB_NAME"),
