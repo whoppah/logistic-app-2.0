@@ -1,6 +1,7 @@
 # backend/logistics/views.py
 import uuid
 from django.core.cache import cache
+from celery.result import AsyncResult
 from django.core.files.base import ContentFile
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -30,13 +31,6 @@ class CheckDeltaView(APIView):
             {"task_id": task.id},
             status=status.HTTP_202_ACCEPTED
         )
-4. Polling & result endpoints
-
-Add two small methods:
-
-# backend/logistics/views.py
-
-from celery.result import AsyncResult
 
 class TaskStatusView(APIView):
     """
