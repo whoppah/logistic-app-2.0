@@ -1,46 +1,67 @@
 //frontend/src/components/Sidebar.jsx
-import { useState } from "react";
-import { LayoutDashboard, BarChart, MessageSquare, Menu } from "lucide-react";
+import React from "react";
+import {
+  MenuIcon,
+  GridIcon,
+  BarChart2Icon,
+  SlackIcon,
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const navItems = [
-  { name: "Dashboard", path: "/", icon: LayoutDashboard },
-  { name: "Analytics", path: "/analytics", icon: BarChart },
-  { name: "Slack", path: "/slack", icon: MessageSquare },
+  { label: "Dashboard", to: "/", icon: <GridIcon /> },
+  { label: "Analytics", to: "/analytics", icon: <BarChart2Icon /> },
+  { label: "Slack", to: "/slack", icon: <SlackIcon /> },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed }) {
-  const location = useLocation();
+  const { pathname } = useLocation();
 
   return (
     <div
-      className={`h-screen bg-gray-900 text-white flex flex-col transition-all duration-300 ${
-        collapsed ? "w-16" : "w-64"
-      }`}
+      className={`
+        fixed top-0 left-0 h-full bg-white border-r border-gray-200
+        transition-width duration-300 flex flex-col
+        ${collapsed ? "w-16" : "w-64"}
+      `}
     >
-      <div className="flex items-center justify-between p-4">
-        <button onClick={() => setCollapsed(!collapsed)}>
-          <Menu className="text-white" />
-        </button>
-        {!collapsed && <h1 className="text-lg font-bold">LogiDash</h1>}
-      </div>
+      {/* collapse/expand toggle */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="p-3 hover:bg-gray-100 focus:outline-none"
+      >
+        <MenuIcon className="h-5 w-5 text-gray-700" />
+      </button>
 
-      <nav className="flex-1">
-        <ul className="space-y-2 px-2">
-          {navItems.map(({ name, path, icon: Icon }) => (
-            <li key={name}>
-              <Link
-                to={path}
-                className={`flex items-center gap-4 p-2 rounded-lg transition hover:bg-gray-800 ${
-                  location.pathname === path ? "bg-gray-800" : ""
-                }`}
-              >
-                <Icon size={20} />
-                {!collapsed && <span>{name}</span>}
-              </Link>
-            </li>
-          ))}
-        </ul>
+      {/* logo or title */}
+      {!collapsed && (
+        <div className="px-4 py-2 text-xl font-bold text-gray-800">
+          Logistics 2.0
+        </div>
+      )}
+
+      {/* nav links */}
+      <nav className="mt-4 flex-1">
+        {navItems.map(({ label, to, icon }) => {
+          const isActive = pathname === to;
+          return (
+            <Link
+              key={to}
+              to={to}
+              className={`
+                flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg
+                ${isActive
+                  ? "bg-indigo-50 text-indigo-600"
+                  : "text-gray-600 hover:bg-gray-100"}
+              `}
+            >
+              <div className="h-5 w-5">{icon}</div>
+              {!collapsed && (
+                <span className="font-medium">{label}</span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
     </div>
   );
