@@ -4,10 +4,19 @@
 <head>
   <meta charset="UTF-8" />
   <title>Logistic 2.0</title>
-  <link rel="stylesheet" href="{% static 'assets/index.css' %}" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  {% if debug %}
+    <!-- Development: Vite injects the CSS -->
+    <script type="module" src="http://localhost:5173/@vite/client"></script>
+    <script type="module" src="http://localhost:5173/src/main.jsx"></script>
+  {% else %}
+    <!-- Production: Use built Vite static files -->
+    <link rel="stylesheet" href="{% static 'assets/index.css' %}" />
+    <script type="module" src="{% static 'assets/index.js' %}"></script>
+  {% endif %}
 </head>
-<body>
+<body class="bg-gray-50 text-gray-800">
   <div id="root"></div>
-  <script type="module" src="{% static 'assets/index.js' %}"></script>
 </body>
 </html>
