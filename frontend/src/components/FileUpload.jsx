@@ -37,9 +37,15 @@ const FileUpload = ({ partner, setPartner, onUpload }) => {
         className="block"
       />
 
-      <button type="submit" className="px-4 py-2 bg-black text-white rounded">
+      <button
+        disabled={!files.length}
+        className={`px-4 py-2 rounded text-white ${
+          files.length ? "bg-black" : "bg-gray-400 cursor-not-allowed"
+        }`}
+      >
         Upload
       </button>
+
     </form>
   );
 };
