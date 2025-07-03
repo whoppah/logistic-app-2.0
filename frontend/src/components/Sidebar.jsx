@@ -31,7 +31,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
               alt="You"
               className="w-8 h-8 rounded-full"
             />
-            <span className="font-semibold">Your Name</span>
+            <span className="font-semibold">Whoppah Logistics 2.0</span>
           </div>
         )}
         <button onClick={() => setCollapsed(!collapsed)}>
