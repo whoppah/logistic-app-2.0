@@ -1,8 +1,6 @@
 //frontend/src/components/Sidebar.jsx
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Menu,
   LayoutDashboard,
   Upload,
   BarChart2,
@@ -18,8 +16,7 @@ const navItems = [
   { name: 'Slack Config', path: '/slack', icon: MessageCircle },
 ];
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+export default function Sidebar({ collapsed, setCollapsed }) {
   const { pathname } = useLocation();
 
   return (
@@ -28,6 +25,7 @@ export default function Sidebar() {
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
+      {/* Header with toggle */}
       <div className="flex items-center justify-between px-4 py-4 border-b">
         {!collapsed && <span className="text-lg font-semibold">Logistiek</span>}
         <button
@@ -38,6 +36,7 @@ export default function Sidebar() {
         </button>
       </div>
 
+      {/* Navigation */}
       <nav className="flex flex-col gap-1 px-2 py-4">
         {navItems.map(({ name, path, icon: Icon }) => (
           <Link
