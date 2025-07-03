@@ -1,17 +1,16 @@
 //frontend/src/components/Sidebar.jsx
-import React from "react";
 import {
   MenuIcon,
-  GridIcon,
+  HomeIcon,
   BarChart2Icon,
-  SlackIcon,
+  MessageCircleIcon,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const navItems = [
-  { label: "Dashboard", to: "/", icon: <GridIcon /> },
-  { label: "Analytics", to: "/analytics", icon: <BarChart2Icon /> },
-  { label: "Slack", to: "/slack", icon: <SlackIcon /> },
+  { to: "/", label: "Dashboard", icon: <HomeIcon /> },
+  { to: "/analytics", label: "Analytics", icon: <BarChart2Icon /> },
+  { to: "/slack", label: "Slack", icon: <MessageCircleIcon /> },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed }) {
@@ -19,50 +18,57 @@ export default function Sidebar({ collapsed, setCollapsed }) {
 
   return (
     <div
-      className={`
-        fixed top-0 left-0 h-full bg-white border-r border-gray-200
-        transition-width duration-300 flex flex-col
-        ${collapsed ? "w-16" : "w-64"}
-      `}
+      className={`fixed top-0 left-0 h-full bg-white border-r 
+        flex flex-col transition-width duration-300
+        ${collapsed ? "w-16" : "w-64"}`}
     >
-      {/* collapse/expand toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="p-3 hover:bg-gray-100 focus:outline-none"
-      >
-        <MenuIcon className="h-5 w-5 text-gray-700" />
-      </button>
+      {/* Profile */}
+      <div className="flex items-center justify-between p-4">
+        {!collapsed && (
+          <div className="flex items-center space-x-3">
+            <img
+              src="/avatar.jpg"
+              alt="You"
+              className="w-8 h-8 rounded-full"
+            />
+            <span className="font-semibold">Your Name</span>
+          </div>
+        )}
+        <button onClick={() => setCollapsed(!collapsed)}>
+          <MenuIcon className="h-6 w-6 text-gray-600" />
+        </button>
+      </div>
 
-      {/* logo or title */}
-      {!collapsed && (
-        <div className="px-4 py-2 text-xl font-bold text-gray-800">
-          Logistics 2.0
-        </div>
-      )}
-
-      {/* nav links */}
-      <nav className="mt-4 flex-1">
-        {navItems.map(({ label, to, icon }) => {
-          const isActive = pathname === to;
+      {/* Nav */}
+      <nav className="flex-1 mt-4">
+        {navItems.map(item => {
+          const active = pathname === item.to;
           return (
             <Link
-              key={to}
-              to={to}
+              key={item.to}
+              to={item.to}
               className={`
                 flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg
-                ${isActive
-                  ? "bg-indigo-50 text-indigo-600"
+                transition-colors duration-150
+                ${active
+                  ? "bg-indigo-50 text-indigo-600 border-l-4 border-indigo-600"
                   : "text-gray-600 hover:bg-gray-100"}
               `}
+              title={collapsed ? item.label : undefined}
             >
-              <div className="h-5 w-5">{icon}</div>
-              {!collapsed && (
-                <span className="font-medium">{label}</span>
-              )}
+              <div className="h-5 w-5">{item.icon}</div>
+              {!collapsed && <span className="font-medium">{item.label}</span>}
             </Link>
           );
         })}
       </nav>
+
+      {/* Footer */}
+      {!collapsed && (
+        <div className="p-4 text-xs text-gray-400">
+          © 2025 Your Company
+        </div>
+      )}
     </div>
   );
 }
