@@ -12,7 +12,10 @@ PRICING_DATA_PATH = os.path.join(BASE_DIR, "backend", "logistics", "pricing_data
 # Environment
 SECRET_KEY = config("SECRET_KEY", default="insecure-key")
 DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="127.0.0.1,localhost").split(",")
+ALLOWED_HOSTS = [
+    "web-production-213b4.up.railway.app",
+    "logistic-app-20-or-frontend-production.up.railway.app"
+]
 
 # Applications
 INSTALLED_APPS = [
