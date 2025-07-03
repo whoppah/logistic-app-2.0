@@ -1,5 +1,4 @@
 //frontend/src/components/Sidebar.jsx
-// src/components/Sidebar.jsx
 import { useState } from "react";
 import { LayoutDashboard, BarChart, MessageSquare, Menu } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
