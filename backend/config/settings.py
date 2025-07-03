@@ -39,7 +39,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 # CORS
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://logistic-app-20-or-frontend-production.up.railway.app",
+]
 
 # Root URL config
 ROOT_URLCONF = "config.urls"
