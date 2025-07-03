@@ -1,53 +1,32 @@
-/*frontend/src/index.css*/
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom base styles */
-html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
+/* ===== Custom global styles ===== */
+html,
+body {
+  @apply bg-gray-50 text-gray-800 antialiased;
   font-family: 'Inter', sans-serif;
-  background-color: #f9fafb; /* Tailwind gray-50 */
-  color: #1f2937; /* Tailwind gray-800 */
 }
 
-/* Scrollbar styling (optional) */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+h1, h2, h3, h4, h5, h6 {
+  @apply font-semibold text-gray-900;
 }
 
-::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 116, 139, 0.3); /* Tailwind slate-500 w/ opacity */
-  border-radius: 4px;
+a {
+  @apply text-blue-600 hover:text-blue-800 transition-colors duration-200;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+/* Optional utility overrides */
+input,
+button,
+select,
+textarea {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
 }
 
-/* Transition support for modals or sidebars */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease-in-out;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* Optional: button overrides */
-button {
-  @apply px-4 py-2 rounded-lg text-sm font-medium transition duration-200;
-}
-
-/* Tables for fallback display */
-table {
-  @apply w-full text-sm text-left border border-gray-200 bg-white;
-}
-
-th, td {
-  @apply px-4 py-2 border-b border-gray-100;
+/* Smooth transitions for layout shifts */
+.sidebar-transition {
+  @apply transition-all duration-300 ease-in-out;
 }
