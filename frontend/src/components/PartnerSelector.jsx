@@ -1,4 +1,5 @@
 //src/components/PartnerSelector.jsx
+import React from "react";
 import {
   TruckIcon,
   PackageIcon,
@@ -44,4 +45,3 @@ export default function PartnerSelector({ partner, setPartner }) {
     </div>
   );
 }
-
