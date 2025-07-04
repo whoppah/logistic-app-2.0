@@ -4,28 +4,24 @@ import { type Config } from 'tailwindcss';
 const config = {
   content: [
     './index.html',
-    './src/**/*.{js,ts,jsx,tsx}',  
+    './src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
       colors: {
-        primary: '#0f172a',  
-        secondary: '#1e293b',
-        accent: '#4f46e5',
+        primary: '#1A1A1A',    // dark charcoal for text
+        accent:  '#10B981',    // Whoppah green (emerald-500)
+        muted:   '#F5F5F5',    // light gray background
       },
-      spacing: {
-        'sidebar-collapsed': '4rem',
-        'sidebar-expanded': '16rem',
-      },
-      borderRadius: {
-        xl: '1rem',
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
       },
     },
   },
   plugins: [
-    require('@tailwindcss/forms'),  
-    require('@tailwindcss/typography'),  
-    require('@tailwindcss/aspect-ratio'), 
+    require('@tailwindcss/forms'),
+    require('@tailwindcss/typography'),
+    require('@tailwindcss/aspect-ratio'),
   ],
 };
 
