@@ -7,6 +7,7 @@ import FileUploader from "../components/FileUploader";
 import Table from "../components/Table";
 
 export default function Dashboard() {
+  const API_BASE = import.meta.env.VITE_API_URL || "";
   const [partner, setPartner]   = useState("brenger");
   const [files, setFiles]       = useState([]);
   const [loading, setLoading]   = useState(false);
@@ -19,9 +20,7 @@ export default function Dashboard() {
   const [taskId, setTaskId]     = useState(null);
   const pollRef = useRef(null);
 
-  useEffect(() => {
-    return () => clearInterval(pollRef.current);
-  }, []);
+  useEffect(() => () => clearInterval(pollRef.current), []);
 
   const onFiles = useCallback((fileList) => {
     setFiles(Array.from(fileList));
@@ -30,22 +29,21 @@ export default function Dashboard() {
   const startPolling = (id) => {
     pollRef.current = setInterval(async () => {
       try {
-        const statusRes = await axios.get(
-          `/api/logistics/task-status/`,
-          { params: { task_id: id } }
+        const statusRes = await axios.post(
+          `${API_BASE}/logistics/task-status/`,
+          { task_id: id }
         );
         console.log("🕵️ task-status:", statusRes.data);
+
         if (statusRes.data.status === "success") {
           clearInterval(pollRef.current);
-
-          const resultRes = await axios.get(
-            `/api/logistics/task-result/`,
-            { params: { task_id: id } }
+          const resultRes = await axios.post(
+            `${API_BASE}/logistics/task-result/`,
+            { task_id: id }
           );
           console.log("✅ task-result:", resultRes.data);
           applyResult(resultRes.data);
-        }
-        else if (statusRes.data.status === "failure") {
+        } else if (statusRes.data.status === "failure") {
           clearInterval(pollRef.current);
           setError("Server failed to process the task.");
           setLoading(false);
@@ -60,9 +58,9 @@ export default function Dashboard() {
   };
 
   const applyResult = (resData) => {
-   
     console.log("🔧 applyResult payload:", resData);
-    const { delta_sum, delta_ok, sheet_url } = resData;
+
+    const { delta_sum, delta_ok, sheet_url, message } = resData;
     let returnedData = [];
     if (Array.isArray(resData.data)) returnedData = resData.data;
     else if (Array.isArray(resData.table_data)) returnedData = resData.table_data;
@@ -76,7 +74,7 @@ export default function Dashboard() {
       setError("");
     } else {
       setData([]);
-      setError(resData.message || "No data rows returned from task-result.");
+      setError(message || "No data rows returned.");
     }
     setLoading(false);
   };
@@ -91,32 +89,36 @@ export default function Dashboard() {
     console.log("🚀 Starting process for partner:", partner);
 
     try {
-      // Upload
+      // 1️⃣ Upload
       const form = new FormData();
       files.forEach((f) => form.append("file", f));
-      console.log("📤 Uploading files…");
-      const up = await axios.post("/api/logistics/upload/", form);
+      console.log("📤 upload to:", `${API_BASE}/logistics/upload/`);
+      const up = await axios.post(
+        `${API_BASE}/logistics/upload/`,
+        form
+      );
       console.log("📤 upload response:", up.data);
       const { redis_key, redis_key_pdf } = up.data;
 
-      // Check-delta
+      // 2️⃣ Check-delta
       const payload = {
         partner,
         redis_key: redis_key || redis_key_pdf,
         redis_key_pdf,
         delta_threshold: 20,
       };
-      console.log("🛰️ check-delta payload:", payload);
+      console.log("🛰️ check-delta to:", `${API_BASE}/logistics/check-delta/`, payload);
 
-      const res = await axios.post("/api/logistics/check-delta/", payload);
-      console.log("🛰️ check-delta response code:", res.status, res.data);
+      const res = await axios.post(
+        `${API_BASE}/logistics/check-delta/`,
+        payload
+      );
+      console.log("🛰️ check-delta response:", res.status, res.data);
 
       if (res.status === 202 && res.data.task_id) {
-        // async case: start polling
         setTaskId(res.data.task_id);
         startPolling(res.data.task_id);
       } else {
-        // sync case: got immediate result in 200
         applyResult(res.data);
       }
     } catch (e) {
@@ -125,7 +127,7 @@ export default function Dashboard() {
         e.response?.data?.error ||
         e.response?.data?.detail ||
         e.message ||
-        "Unknown error on check-delta"
+        "Unknown error"
       );
       setLoading(false);
     }
