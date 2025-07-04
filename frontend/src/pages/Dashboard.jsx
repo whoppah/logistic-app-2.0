@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [taskId, setTaskId]     = useState(null);
   const pollRef = useRef(null);
 
+  // clear any polling on unmount
   useEffect(() => () => clearInterval(pollRef.current), []);
 
   const onFiles = useCallback((fileList) => {
@@ -29,17 +30,19 @@ export default function Dashboard() {
   const startPolling = (id) => {
     pollRef.current = setInterval(async () => {
       try {
-        const statusRes = await axios.post(
+        // GET task-status
+        const statusRes = await axios.get(
           `${API_BASE}/logistics/task-status/`,
-          { task_id: id }
+          { params: { task_id: id } }
         );
         console.log("🕵️ task-status:", statusRes.data);
 
         if (statusRes.data.status === "success") {
           clearInterval(pollRef.current);
-          const resultRes = await axios.post(
+          // GET task-result
+          const resultRes = await axios.get(
             `${API_BASE}/logistics/task-result/`,
-            { task_id: id }
+            { params: { task_id: id } }
           );
           console.log("✅ task-result:", resultRes.data);
           applyResult(resultRes.data);
@@ -59,8 +62,8 @@ export default function Dashboard() {
 
   const applyResult = (resData) => {
     console.log("🔧 applyResult payload:", resData);
-
     const { delta_sum, delta_ok, sheet_url, message } = resData;
+
     let returnedData = [];
     if (Array.isArray(resData.data)) returnedData = resData.data;
     else if (Array.isArray(resData.table_data)) returnedData = resData.table_data;
