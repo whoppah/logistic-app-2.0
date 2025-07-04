@@ -51,7 +51,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
                 flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg
                 transition-colors duration-150
                 ${active
-                  ? "bg-indigo-50 text-indigo-600 border-l-4 border-indigo-600"
+                  ? "bg-accent/10 text-accent border-l-4 border-accent"
                   : "text-gray-600 hover:bg-gray-100"}
               `}
               title={collapsed ? item.label : undefined}
