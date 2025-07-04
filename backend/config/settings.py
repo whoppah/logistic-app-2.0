@@ -7,7 +7,7 @@ from pathlib import Path
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-PRICING_DATA_PATH = os.path.join(BASE_DIR, "backend", "logistics", "pricing_data")
+PRICING_DATA_PATH = os.path.join(BASE_DIR, "logistics", "pricing_data")
 
 # Environment
 SECRET_KEY = config("SECRET_KEY", default="insecure-key")
