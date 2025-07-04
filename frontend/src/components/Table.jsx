@@ -2,20 +2,10 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-/**
- * Minimal, modern table.
- *
- * Props:
- *  - data: Array of objects (rows)
- *  - columns: Optional array of { key, label } to control order/headers.
- *             If omitted, uses Object.keys(data[0]).
- */
 export default function Table({ data, columns }) {
   if (!Array.isArray(data) || data.length === 0) {
     return <p className="text-gray-500">No data to display</p>;
   }
-
-  // Infer columns from the first row if not provided
   const cols = columns
     ? columns
     : Object.keys(data[0]).map((key) => ({ key, label: key }));
