@@ -147,7 +147,7 @@ export default function Dashboard() {
       <button
         onClick={handleSubmit}
         disabled={loading}
-        className="px-6 py-3 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+        className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50"
       >
         {loading ? "Processing…" : "Upload & Analyze"}
       </button>
