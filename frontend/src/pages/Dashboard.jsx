@@ -16,13 +16,9 @@ export default function Dashboard() {
   const [data, setData]         = useState([]);
   const [error, setError]       = useState("");
 
-  // Log partner + files whenever they change
-  useEffect(() => {
-    console.log("🔄 partner changed:", partner);
-  }, [partner]);
-  useEffect(() => {
-    console.log("🔄 files changed:", files);
-  }, [files]);
+  // Debug logs for partner & files
+  useEffect(() => console.log("🔄 partner changed:", partner), [partner]);
+  useEffect(() => console.log("🔄 files changed:", files), [files]);
 
   const onFiles = useCallback((fileList) => {
     setFiles(Array.from(fileList));
@@ -38,10 +34,11 @@ export default function Dashboard() {
     console.log("🚀 Starting process for partner:", partner);
 
     try {
-      // 1) Upload
+      // 1) Upload files
       const form = new FormData();
       files.forEach((f) => form.append("file", f));
-      console.log("📤 Sending upload FormData…", form);
+      console.log("📤 Upload FormData:", form);
+
       const up = await axios.post(
         `${import.meta.env.VITE_API_URL}/logistics/upload/`,
         form
@@ -49,45 +46,52 @@ export default function Dashboard() {
       console.log("📤 Upload response:", up.data);
       const { redis_key, redis_key_pdf } = up.data;
 
-      // 2) Check delta
+      // 2) Check-delta
       const payload = {
         partner,
-        redis_key: redis_key || redis_key_pdf,  // coalesce
+        redis_key: redis_key || redis_key_pdf,
         redis_key_pdf,
         delta_threshold: 20,
       };
-      console.log("🛰️  CHECK-DELTA payload:", payload);
+      console.log("🛰️ CHECK-DELTA payload:", payload);
+
       const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/logistics/check-delta/`,
         payload
       );
-      console.log("🛰️  CHECK-DELTA response:", res.data);
+      console.log("🛰️ CHECK-DELTA full response:", res.data);
 
-      // 3) Apply result
-      const {
-        delta_sum,
-        delta_ok,
-        data: returnedData,
-        sheet_url,
-      } = res.data;
+      // 3) Extract fields with fallback
+      const delta_sum = res.data.delta_sum;
+      const delta_ok  = res.data.delta_ok;
+      const sheet_url = res.data.sheet_url;
 
-      console.log("✅ Parsed response fields:", {
+      // Look for array under `data` or `table_data`
+      let returnedData = [];
+      if (Array.isArray(res.data.data)) {
+        returnedData = res.data.data;
+      } else if (Array.isArray(res.data.table_data)) {
+        returnedData = res.data.table_data;
+      }
+
+      console.log("✅ Parsed response:", {
         delta_sum,
         delta_ok,
         returnedData,
         sheet_url,
+        message: res.data.message,
       });
 
       setDeltaSum(delta_sum);
       setDeltaOk(delta_ok);
       setSheetUrl(sheet_url);
 
-      if (Array.isArray(returnedData)) {
-        console.log("▶️ Setting data state to array of length:", returnedData.length);
+      if (returnedData.length > 0) {
         setData(returnedData);
+        setError("");
       } else {
-        console.error("❌ Expected returnedData to be an array but got:", returnedData);
         setData([]);
+        setError(res.data.message || "No data rows returned");
       }
     } catch (e) {
       console.error("❌ Error in handleSubmit:", e);
@@ -99,14 +103,12 @@ export default function Dashboard() {
       );
     } finally {
       setLoading(false);
-      console.log("⏹️ Loading complete");
+      console.log("⏹️ Processing complete");
     }
   };
 
-  // Log data changes
-  useEffect(() => {
-    console.log("▶️ data state updated:", data);
-  }, [data]);
+  // Log data state changes
+  useEffect(() => console.log("▶️ data updated:", data), [data]);
 
   return (
     <div className="ml-64 p-8 space-y-8">
@@ -126,7 +128,6 @@ export default function Dashboard() {
 
       {error && <p className="text-red-600">{error}</p>}
 
-      {/* Summary */}
       {data.length > 0 && (
         <div className="bg-white p-6 rounded-xl shadow space-y-4">
           <div className="flex justify-between items-center">
@@ -148,7 +149,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Data table */}
           <Table data={data} />
         </div>
       )}
