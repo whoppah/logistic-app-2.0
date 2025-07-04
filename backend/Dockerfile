@@ -24,7 +24,7 @@ RUN pip install --upgrade pip \
 COPY . /app/
 
 # Ensure your Google service-account JSON lands in the right path
-COPY backend/logistics/pricing_data /app/backend/logistics/pricing_data
+COPY logistics/pricing_data /app/backend/logistics/pricing_data
 
 # Add and make executable the entrypoint
 COPY entrypoint.sh /app/entrypoint.sh
