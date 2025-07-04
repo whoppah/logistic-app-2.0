@@ -1,14 +1,17 @@
 #backend/config/settings.py
 import os
-import dj_database_url
 from pathlib import Path
 from decouple import config
-from pathlib import Path
 
-# Base directory
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-PRICING_DATA_PATH = os.path.join(BASE_DIR, "logistics", "pricing_data")
-
+# === FIXED DIR ===
+BASE_DIR = Path(__file__).resolve().parent.parent
+PRICING_DATA_PATH = BASE_DIR / "logistics" / "pricing_data"
+GOOGLE_SERVICE_ACCOUNT_FILE = Path(
+    config(
+        "GOOGLE_SERVICE_ACCOUNT_FILE",
+        default=str(PRICING_DATA_PATH / "upbeat-flame-451212-j5-8d545d206f5e.json")
+    )
+)
 # Environment
 SECRET_KEY = config("SECRET_KEY", default="insecure-key")
 DEBUG = config("DEBUG", default=False, cast=bool)
