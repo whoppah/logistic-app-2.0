@@ -1,6 +1,5 @@
 #backend/logistics/services/delta_checker.py
 import pandas as pd
-import redis
 from django.conf import settings
 
 from logistics.parsers.registry import parser_registry
@@ -16,19 +15,22 @@ class DeltaChecker:
     def __init__(self, db_service=None, spreadsheet_exporter=None):
         self.db_service = db_service or DatabaseService()
         self.spreadsheet_exporter = spreadsheet_exporter or SpreadsheetExporter()
-        # initialize Redis client once
-        self.redis = redis.from_url(settings.REDIS_URL)
 
     def evaluate(
         self,
         partner: str,
-        redis_key: str,
         df_list: list,
-        redis_key_pdf: str = "",
+        invoice_bytes: bytes,
+        pdf_bytes: bytes | None = None,
         delta_threshold: float = 20.0
     ) -> tuple[bool, bool, pd.DataFrame | None]:
         """
-        Returns (delta_ok: bool, parsed_success: bool, df_merged or None)
+        Compute delta for the given partner using in‐memory file bytes.
+
+        Returns:
+            - delta_ok: True if delta_sum <= threshold
+            - parsed_ok: True if any invoice rows were parsed
+            - df_merged: the merged DataFrame (or None on failure)
         """
         try:
             partner = partner.strip().lower()
@@ -36,18 +38,14 @@ class DeltaChecker:
 
             parser_cls = parser_registry.get(partner)
             if not parser_cls:
-                print(f"❌ Unsupported partner: {partner}")
-                return False, False, None
+                raise ValueError(f"Unsupported partner: {partner}")
 
             parser = parser_cls()
 
-            # Load invoice bytes from Redis
-            invoice_bytes = self._load_file_bytes(redis_key)
+            # Parse invoice bytes
             if partner == "libero":
-                if not redis_key_pdf:
-                    raise ValueError("Missing PDF metadata file for Libero.")
-                pdf_bytes = self._load_file_bytes(redis_key_pdf)
-                # Libero parser needs both excel and pdf bytes
+                if pdf_bytes is None:
+                    raise ValueError("Libero requires both invoice & PDF bytes")
                 df_invoice = parser.parse(invoice_bytes, context={"pdf_bytes": pdf_bytes})
                 calculator = LiberoDeltaCalculator(df_invoice, df_order)
 
@@ -64,22 +62,26 @@ class DeltaChecker:
                 calculator = BrengerDeltaCalculator(df_invoice, df_order)
 
             else:
-                raise NotImplementedError(f"No calculator configured for partner: {partner}")
+                raise NotImplementedError(f"No calculator configured for partner '{partner}'")
 
             return self._process(df_invoice, calculator.compute, partner, df_list, delta_threshold)
 
         except Exception as e:
+            # Log the error in your preferred way
             print(f"❌ Error in DeltaChecker.evaluate: {e}")
             return False, False, None
 
     def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
-        df_merged, delta_sum, flag = compute_fn()
+        df_merged, delta_sum, parsed_flag = compute_fn()
+
+        if df_merged is None:
+            return False, False, None
 
         if not df_merged.empty:
             df_merged["Type"] = "data"
             df_merged["partner"] = partner
             df_list.append(df_merged)
-        elif delta_sum == 0 and flag:
+        elif delta_sum == 0 and parsed_flag:
             summary = pd.DataFrame([{
                 "Partner": partner,
                 "Delta sum": delta_sum,
@@ -89,20 +91,10 @@ class DeltaChecker:
             df_list.append(summary)
 
         try:
-            url = self.spreadsheet_exporter.export(df_merged, partner)
-            print(f"✅ Exported to Google Sheets: {url}")
+            sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
+            print(f"✅ Exported to Google Sheets: {sheet_url}")
         except Exception as e:
             print(f"⚠️ Failed to export to Google Sheets: {e}")
 
-        return delta_sum <= delta_threshold, flag, df_merged
+        return delta_sum <= delta_threshold, parsed_flag, df_merged
 
-    def _load_file_bytes(self, redis_key: str) -> bytes:
-        """
-        Fetch file bytes from Redis under key "upload:<redis_key>".
-        Raises FileNotFoundError if missing.
-        """
-        redis_redis_key = f"upload:{redis_key}"
-        data = self.redis.get(redis_redis_key)
-        if not data:
-            raise FileNotFoundError(f"No file bytes found in Redis for key: {redis_redis_key}")
-        return data
