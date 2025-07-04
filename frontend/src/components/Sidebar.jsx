@@ -27,7 +27,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
         {!collapsed && (
           <div className="flex items-center space-x-3">
             <img
-              src="public/whoppah_logo.png"
+              src="../public/whoppah_logo.png"
               alt="You"
               className="w-8 h-8 rounded-full"
             />
