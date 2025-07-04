@@ -3,8 +3,8 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import axios from "axios";
 
 import PartnerSelector from "../components/PartnerSelector";
-import FileUploader    from "../components/FileUploader";
-import Table           from "../components/Table";
+import FileUploader from "../components/FileUploader";
+import Table from "../components/Table";
 
 export default function Dashboard() {
   const [partner, setPartner]   = useState("brenger");
@@ -19,7 +19,6 @@ export default function Dashboard() {
   const [taskId, setTaskId]     = useState(null);
   const pollRef = useRef(null);
 
-  // clear any polling on unmount
   useEffect(() => {
     return () => clearInterval(pollRef.current);
   }, []);
@@ -61,7 +60,7 @@ export default function Dashboard() {
   };
 
   const applyResult = (resData) => {
-    // resData should contain: delta_sum, delta_ok, data/table_data, sheet_url, message
+   
     console.log("🔧 applyResult payload:", resData);
     const { delta_sum, delta_ok, sheet_url } = resData;
     let returnedData = [];
@@ -92,7 +91,7 @@ export default function Dashboard() {
     console.log("🚀 Starting process for partner:", partner);
 
     try {
-      // 1️⃣ Upload
+      // Upload
       const form = new FormData();
       files.forEach((f) => form.append("file", f));
       console.log("📤 Uploading files…");
@@ -100,7 +99,7 @@ export default function Dashboard() {
       console.log("📤 upload response:", up.data);
       const { redis_key, redis_key_pdf } = up.data;
 
-      // 2️⃣ Check-delta
+      // Check-delta
       const payload = {
         partner,
         redis_key: redis_key || redis_key_pdf,
