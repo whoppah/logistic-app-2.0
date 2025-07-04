@@ -15,7 +15,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # your code
 COPY . .
 
-COPY backend/logistics/pricing_data /app/logistics/pricing_data
+COPY logistics/pricing_data /app/logistics/pricing_data
 
 # entrypoint + permissions
 COPY entrypoint.sh .
