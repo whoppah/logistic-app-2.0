@@ -1,38 +1,38 @@
-# Use an official Python image as base
+# backend/Dockerfile
 FROM python:3.12-slim
 
-# Prevent Python from writing .pyc files and buffer stdout/stderr
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# 2) Env
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Set working directory
 WORKDIR /app
 
-# Install OS dependencies
+# 3) OS deps
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     curl \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# 4) Python deps
 COPY requirements.txt /app/
 RUN pip install --upgrade pip \
  && pip install -r requirements.txt
 
-# Copy the entire project into the container
+# 5) Copy backend code
 COPY . /app/
 
-# Ensure your Google service-account JSON lands in the right path
-COPY logistics/pricing_data /app/backend/logistics/pricing_data
+# 6) Ensure pricing_data dir exists and copy the JSON
+RUN mkdir -p /app/logistics/pricing_data
+COPY logistics/pricing_data/upbeat-flame-451212-j5-8d545d206f5e.json \
+     /app/logistics/pricing_data/
 
-# Add and make executable the entrypoint
+# 7) Entrypoint
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Expose the port that Gunicorn will bind to
+# 8) Expose Gunicorn port
 EXPOSE 8000
 
-# Default to running the Django web server; 
-# Procfile defines web/worker/beat for Railway
+# 9) Default to web
 CMD ["/app/entrypoint.sh", "web"]
