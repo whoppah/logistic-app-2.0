@@ -27,11 +27,11 @@ export default function Sidebar({ collapsed, setCollapsed }) {
         {!collapsed && (
           <div className="flex items-center space-x-3">
             <img
-              src="/avatar.jpg"
+              src="public/whoppah_logo.png"
               alt="You"
               className="w-8 h-8 rounded-full"
             />
-            <span className="font-semibold">Whoppah Logistics 2.0</span>
+            <span className="font-semibold">Logistics 2.0</span>
           </div>
         )}
         <button onClick={() => setCollapsed(!collapsed)}>
@@ -66,7 +66,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       {/* Footer */}
       {!collapsed && (
         <div className="p-4 text-xs text-gray-400">
-          © 2025 Your Company
+          Whoppah
         </div>
       )}
     </div>
