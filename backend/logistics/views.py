@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 
+# Redis client for storing uploads
 redis_client = redis.from_url(settings.REDIS_URL)
 
 
@@ -40,10 +41,7 @@ class UploadInvoiceFile(APIView):
                 redis_key_pdf = key
 
         return Response(
-            {
-                "redis_key":     redis_key,
-                "redis_key_pdf": redis_key_pdf,
-            },
+            {"redis_key": redis_key, "redis_key_pdf": redis_key_pdf},
             status=status.HTTP_200_OK,
         )
 
@@ -64,23 +62,22 @@ class CheckDeltaView(APIView):
             return Response({"error": "Missing required fields."},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        # Lazy-import so heavy libs stay out of web process
         from .tasks import process_invoice_pipeline
+
         task = process_invoice_pipeline.delay(
             partner=partner,
             redis_key=redis_key,
             redis_key_pdf=redis_key_pdf,
             delta_threshold=delta_threshold
         )
-
-        return Response(
-            {"task_id": task.id},
-            status=status.HTTP_202_ACCEPTED
-        )
+        return Response({"task_id": task.id}, status=status.HTTP_202_ACCEPTED)
 
 
 class TaskStatusView(APIView):
     """
-    Poll this to get current status of a Celery task.
+    Poll this to get current state of a Celery task.
+    Returns {"state": "PENDING"|"STARTED"|"SUCCESS"|"FAILURE"|...}.
     """
 
     def get(self, request):
@@ -109,5 +106,5 @@ class TaskResultView(APIView):
             return Response({"error": "Not ready", "state": res.state},
                             status=status.HTTP_202_ACCEPTED)
 
-       
+        # res.result is the final dict from export_sheet
         return Response(res.result or {}, status=status.HTTP_200_OK)
