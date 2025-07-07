@@ -10,7 +10,11 @@ from django.conf import settings
 class SlackService:
     def __init__(self, bot_token=None, channel_id=None):
         self.token = bot_token or settings.SLACK_BOT_TOKEN
+        if not self.token:
+            raise RuntimeError("Missing SLACK_BOT_TOKEN in settings.")
         self.channel = channel_id or settings.SLACK_CHANNEL_ID
+        if not self.channel:
+            raise RuntimeError("Missing SLACK_CHANNEL_ID in settings.")
         self.client = WebClient(token=self.token)
         self.save_path = os.path.join(settings.BASE_DIR, "backend", "logistics", "slack")
         os.makedirs(self.save_path, exist_ok=True)
