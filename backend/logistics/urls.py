@@ -1,6 +1,6 @@
 #backend/logistics/urls.py
 from django.urls import path
-from .views import CheckDeltaView, UploadInvoiceFile, TaskStatusView, TaskResultView
+from .views import CheckDeltaView, UploadInvoiceFile, TaskStatusView, TaskResultView, AnalyticsView
 
 app_name = "logistics"
 
