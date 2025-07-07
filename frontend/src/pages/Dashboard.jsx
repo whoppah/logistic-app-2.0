@@ -1,4 +1,4 @@
-// frontend/src/pages/Dashboard.jsx
+//frontend/src/pages/Dashboard.jsx
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import axios from "axios";
 
@@ -8,16 +8,16 @@ import Table from "../components/Table";
 
 export default function Dashboard() {
   const API_BASE = import.meta.env.VITE_API_URL || "";
-  const [partner, setPartner]   = useState("brenger");
-  const [files, setFiles]       = useState([]);
-  const [loading, setLoading]   = useState(false);
-  const [deltaSum, setDeltaSum] = useState(0);
-  const [deltaOk, setDeltaOk]   = useState(false);
-  const [sheetUrl, setSheetUrl] = useState("");
-  const [data, setData]         = useState([]);
-  const [error, setError]       = useState("");
+  const [partner,    setPartner]   = useState("brenger");
+  const [files,      setFiles]     = useState([]);
+  const [loading,    setLoading]   = useState(false);
+  const [deltaSum,   setDeltaSum]  = useState(0);
+  const [deltaOk,    setDeltaOk]   = useState(false);
+  const [sheetUrl,   setSheetUrl]  = useState("");
+  const [data,       setData]      = useState([]);
+  const [error,      setError]     = useState("");
 
-  const [taskId, setTaskId]     = useState(null);
+  const [taskId,     setTaskId]    = useState(null);
   const pollRef = useRef(null);
 
   // clear any polling on unmount
@@ -37,7 +37,8 @@ export default function Dashboard() {
         );
         console.log("🕵️ task-status:", statusRes.data);
 
-        if (statusRes.data.status === "success") {
+        // ← check the raw Celery state
+        if (statusRes.data.state === "SUCCESS") {
           clearInterval(pollRef.current);
           // GET task-result
           const resultRes = await axios.get(
@@ -46,7 +47,8 @@ export default function Dashboard() {
           );
           console.log("✅ task-result:", resultRes.data);
           applyResult(resultRes.data);
-        } else if (statusRes.data.status === "failure") {
+
+        } else if (["FAILURE", "REVOKED"].includes(statusRes.data.state)) {
           clearInterval(pollRef.current);
           setError("Server failed to process the task.");
           setLoading(false);
@@ -178,5 +180,5 @@ export default function Dashboard() {
         </div>
       )}
     </div>
-  );
+);
 }
