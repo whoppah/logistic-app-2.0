@@ -153,3 +153,7 @@ SECURE_HSTS_PRELOAD = not DEBUG
 
 X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# === SLACK ===
+SLACK_BOT_TOKEN = config("SLACK_BOT_TOKEN", default="")
+SLACK_CHANNEL_ID = config("SLACK_CHANNEL_ID", default="")
