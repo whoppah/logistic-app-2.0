@@ -86,7 +86,7 @@ class DeltaChecker:
         if "Delta" in df_merged.columns:
             df_merged["Delta"] = df_merged["Delta"].astype(float)
         if "Delta_sum" in df_merged.columns:
-            df_merged["Delta_sum"] = float(df_merged["Delta_sum"])
+            df_merged["Delta_sum"] = df_merged["Delta_sum"].astype(float)
 
         # Append to list for further aggregation or export
         if not df_merged.empty:
