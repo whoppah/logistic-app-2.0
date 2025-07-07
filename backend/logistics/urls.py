@@ -1,6 +1,6 @@
 #backend/logistics/urls.py
 from django.urls import path
-from .views import CheckDeltaView, UploadInvoiceFile, TaskStatusView, TaskResultView, AnalyticsView
+from .views import CheckDeltaView, UploadInvoiceFile, TaskStatusView, TaskResultView, AnalyticsView, SlackMessagesView, SlackThreadView
 
 app_name = "logistics"
 
@@ -10,4 +10,6 @@ urlpatterns = [
     path("task-status/", TaskStatusView.as_view(), name="task-status"),
     path("task-result/", TaskResultView.as_view(), name="task-result"),
     path("analytics/", AnalyticsView.as_view(), name="analytics"),
+    path("slack/messages/", SlackMessagesView.as_view(), name="slack-messages"),
+    path("slack/threads/",  SlackThreadView.as_view(), name="slack-threads"),
 ]
