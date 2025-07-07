@@ -131,6 +131,7 @@ class BrengerParser(BaseParser):
                 print(f"[OK] Total matches: {sum_check}")
 
         self.validate(df)
+        print("df invoice brenger: ",df)
         return df
 
     def _combine_trip_line(self, line, next_line, next_next_line):
