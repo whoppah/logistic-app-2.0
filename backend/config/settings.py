@@ -18,6 +18,7 @@ SECRET_KEY = config("SECRET_KEY", default="insecure-key")
 DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = [
     "web-production-213b4.up.railway.app",
+    "logistics-app-20-or-backend-production.up.railway.app",
     "logistic-app-20-or-frontend-production.up.railway.app"
 ]
 
