@@ -17,7 +17,7 @@ GOOGLE_SERVICE_ACCOUNT_FILE = Path(
 SECRET_KEY = config("SECRET_KEY", default="insecure-key")
 DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = [
-    "logistics-app-20-or-backend-production.up.railway.app",
+    "logistics-app-20-backend-production.up.railway.app",
     "logistic-app-20-or-frontend-production.up.railway.app"
 ]
 
