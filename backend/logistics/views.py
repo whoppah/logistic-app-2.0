@@ -13,6 +13,7 @@ from django.db.models import Avg, Count
 
 from .models import InvoiceRun
 from .tasks import load_invoice_bytes, evaluate_delta, export_sheet
+from .services.slack_service import SlackService
 
 redis_client = redis.from_url(settings.REDIS_URL)
 
@@ -127,3 +128,55 @@ class AnalyticsView(APIView):
             "avg_delta":   round(avg_delta, 2),
             "top_partner": top_partner,
         }, status=status.HTTP_200_OK)
+
+class SlackMessagesView(APIView):
+    """
+    GET /slack/messages/ → return recent messages + reply counts
+    """
+    def get(self, request):
+        slack = SlackService()
+        msgs = slack.get_latest_messages(limit=50)
+
+        # For each message, note how many replies (thread_ts !== ts)
+        out = []
+        for m in msgs:
+            ts = m.get("ts")
+            thread_ts = m.get("thread_ts")
+            
+            parent_ts = thread_ts if thread_ts and thread_ts != ts else ts
+
+            replies = [msg for msg in msgs if msg.get("thread_ts") == parent_ts and msg.get("ts") != parent_ts]
+            out.append({
+                "ts": ts,
+                "user": m.get("user"),
+                "user_name": m.get("user_profile", {}).get("real_name") or m.get("user"),
+                "text": m.get("text"),
+                "ts_float": float(ts),
+                "reply_count": len(replies),
+            })
+
+        return Response(out, status=status.HTTP_200_OK)
+
+
+class SlackThreadView(APIView):
+    """
+    GET /slack/threads/?thread_ts=12345 → return the thread messages
+    """
+    def get(self, request):
+        thread_ts = request.query_params.get("thread_ts")
+        if not thread_ts:
+            return Response({"error": "Missing thread_ts"}, status=status.HTTP_400_BAD_REQUEST)
+
+        slack = SlackService()
+        messages = slack.get_thread(thread_ts, limit=100)
+
+        out = []
+        for m in messages:
+            out.append({
+                "ts":           m.get("ts"),
+                "user":         m.get("user"),
+                "user_name":    m.get("user_profile", {}).get("real_name") or m.get("user"),
+                "text":         m.get("text"),
+                "ts_float":     float(m.get("ts")),
+            })
+        return Response(out, status=status.HTTP_200_OK)
