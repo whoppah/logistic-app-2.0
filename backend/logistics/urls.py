@@ -9,4 +9,5 @@ urlpatterns = [
     path("check-delta/", CheckDeltaView.as_view(), name="check-delta"),
     path("task-status/", TaskStatusView.as_view(), name="task-status"),
     path("task-result/", TaskResultView.as_view(), name="task-result"),
+    path("analytics/", AnalyticsView.as_view(), name="analytics"),
 ]
