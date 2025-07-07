@@ -9,7 +9,9 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
+from django.db.models import Avg, Count
 
+from .models import InvoiceRun
 from .tasks import load_invoice_bytes, evaluate_delta, export_sheet
 
 redis_client = redis.from_url(settings.REDIS_URL)
@@ -102,3 +104,26 @@ class TaskResultView(APIView):
                             status=status.HTTP_202_ACCEPTED)
 
         return Response(res.result or {}, status=status.HTTP_200_OK)
+
+class AnalyticsView(APIView):
+    """
+    Returns totals and averages from InvoiceRun.
+    """
+
+    def get(self, request):
+        qs = InvoiceRun.objects.all()
+        total_files = qs.count()
+        avg_delta   = qs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
+        top = (
+            qs.values("partner")
+              .annotate(cnt=Count("id"))
+              .order_by("-cnt")
+              .first()
+        )
+        top_partner = top["partner"] if top else ""
+
+        return Response({
+            "total_files": total_files,
+            "avg_delta":   round(avg_delta, 2),
+            "top_partner": top_partner,
+        }, status=status.HTTP_200_OK)
