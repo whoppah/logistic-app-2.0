@@ -10,21 +10,18 @@ export default function Slack() {
   const [loadingThread, setLoadingThread] = useState(null);
   const listRef = useRef(null);
 
-  // Scroll to bottom when messages or a thread loads
+  // scroll helper
   const scrollToBottom = () => {
     setTimeout(() => {
-      listRef.current?.scrollTo({
-        top: listRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
     }, 100);
   };
 
-  // Fetch top-level messages on mount
+  // 1️⃣ Fetch top-level messages
   useEffect(() => {
     async function fetchMessages() {
       try {
-        const res = await axios.get(`${API_BASE}/slack/messages/`);
+        const res = await axios.get(`${API_BASE}/logistics/slack/messages/`);
         setMessages(res.data);
       } catch (err) {
         console.error("Error fetching Slack messages", err);
@@ -36,10 +33,10 @@ export default function Slack() {
     fetchMessages();
   }, [API_BASE]);
 
-  // Fetch a thread when its badge is clicked
+  // 2️⃣ Load or toggle a thread
   const handleShowThread = async (threadTs) => {
+    // if we already have it, toggle it off
     if (threadMessages[threadTs]) {
-      // already loaded → toggle visibility
       setThread(prev => {
         const copy = { ...prev };
         delete copy[threadTs];
@@ -50,7 +47,7 @@ export default function Slack() {
 
     setLoadingThread(threadTs);
     try {
-      const res = await axios.get(`${API_BASE}/slack/threads/`, {
+      const res = await axios.get(`${API_BASE}/logistics/slack/threads/`, {
         params: { thread_ts: threadTs },
       });
       setThread(prev => ({ ...prev, [threadTs]: res.data }));
@@ -78,7 +75,7 @@ export default function Slack() {
             const thread = threadMessages[ts] || [];
             return (
               <div key={ts} className="space-y-2">
-                {/* Top-level message */}
+                {/* Top-level */}
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-semibold">{user_name}</p>
@@ -100,7 +97,7 @@ export default function Slack() {
                   )}
                 </div>
 
-                {/* Thread messages */}
+                {/* Thread */}
                 {thread.length > 0 && (
                   <div className="ml-6 border-l-2 border-gray-200 pl-4 space-y-2">
                     {thread.map((t) => (
@@ -120,7 +117,7 @@ export default function Slack() {
         </div>
       )}
 
-      {/* Input bar */}
+      {/* Input bar (placeholder) */}
       <div className="mt-4 flex space-x-2">
         <input
           type="text"
