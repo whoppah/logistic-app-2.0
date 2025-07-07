@@ -1,4 +1,4 @@
-# backend/logistics/tasks.py
+#backend/logistics/tasks.py
 import logging
 import redis
 from celery import shared_task, chain
@@ -12,6 +12,7 @@ redis_client = redis.from_url(settings.REDIS_URL)
 @shared_task(name="logistics.tasks.load_invoice_bytes")
 def load_invoice_bytes(redis_key: str, redis_key_pdf: str = "") -> dict:
     logger.info("🔄 [load_invoice_bytes] fetching %s / %s", redis_key, redis_key_pdf)
+
     def _get_bytes(key):
         if not key:
             return None
@@ -32,15 +33,12 @@ def load_invoice_bytes(redis_key: str, redis_key_pdf: str = "") -> dict:
 def evaluate_delta(ctx: dict, partner: str, delta_threshold: float) -> dict:
     logger.info("🔍 [evaluate_delta] partner=%s", partner)
     checker = DeltaChecker()
-    # Now DeltaChecker should accept invoice_bytes & pdf_bytes from ctx directly
     success, parsed_ok, df_merged = checker.evaluate(
         partner=partner,
-        redis_key="",         # not used
-        redis_key_pdf="",     # not used
         df_list=[],
+        invoice_bytes=ctx.get("invoice_bytes"),
+        pdf_bytes=ctx.get("pdf_bytes"),
         delta_threshold=delta_threshold,
-        invoice_bytes=ctx["invoice_bytes"],
-        pdf_bytes=ctx["pdf_bytes"],
     )
 
     if df_merged is None:
@@ -58,8 +56,8 @@ def evaluate_delta(ctx: dict, partner: str, delta_threshold: float) -> dict:
 def export_sheet(ctx: dict, partner: str) -> dict:
     if "error" in ctx:
         return ctx
+
     logger.info("📤 [export_sheet] partner=%s", partner)
-    # assume DeltaChecker already did the export internally
     sheet_url = DeltaChecker().spreadsheet_exporter.spreadsheet.url
     ctx["sheet_url"] = sheet_url
     return ctx
@@ -79,7 +77,6 @@ def process_invoice_pipeline(
     """
     logger.info("▶️ Starting pipeline %s for %s", self.request.id, partner)
 
-    # build and apply the chain
     job = chain(
         load_invoice_bytes.s(redis_key, redis_key_pdf),
         evaluate_delta.s(partner, delta_threshold),
@@ -88,3 +85,4 @@ def process_invoice_pipeline(
     logger.info("🔗 Dispatched chain, id=%s", job.id)
 
     return {"task_id": job.id}
+
