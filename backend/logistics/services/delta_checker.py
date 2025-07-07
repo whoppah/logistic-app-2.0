@@ -1,7 +1,6 @@
 #backend/logistics/services/delta_checker.py
 import pandas as pd
 from django.conf import settings
-
 from logistics.parsers.registry import parser_registry
 from logistics.services.spreadsheet_exporter import SpreadsheetExporter
 from logistics.services.database_service import DatabaseService
@@ -67,34 +66,47 @@ class DeltaChecker:
             return self._process(df_invoice, calculator.compute, partner, df_list, delta_threshold)
 
         except Exception as e:
-            # Log the error in your preferred way
             print(f"❌ Error in DeltaChecker.evaluate: {e}")
             return False, False, None
 
     def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
-        df_merged, delta_sum, parsed_flag = compute_fn()
+        # Run the partner-specific compute()
+        df_merged, raw_delta_sum, raw_parsed_flag = compute_fn()
 
+        # If compute() failed
         if df_merged is None:
             return False, False, None
 
+        # Cast to native Python types
+        delta_sum   = float(raw_delta_sum)
+        parsed_flag = bool(raw_parsed_flag)
+        delta_ok    = delta_sum <= float(delta_threshold)
+
+        # Ensure DataFrame columns are native types
+        if "Delta" in df_merged.columns:
+            df_merged["Delta"] = df_merged["Delta"].astype(float)
+        if "Delta_sum" in df_merged.columns:
+            df_merged["Delta_sum"] = float(df_merged["Delta_sum"])
+
+        # Append to list for further aggregation or export
         if not df_merged.empty:
-            df_merged["Type"] = "data"
+            df_merged["Type"]    = "data"
             df_merged["partner"] = partner
             df_list.append(df_merged)
         elif delta_sum == 0 and parsed_flag:
             summary = pd.DataFrame([{
-                "Partner": partner,
-                "Delta sum": delta_sum,
-                "Message": "All prices match perfectly",
-                "Type": "summary"
+                "Partner":     partner,
+                "Delta sum":   delta_sum,
+                "Message":     "All prices match perfectly",
+                "Type":        "summary"
             }])
             df_list.append(summary)
 
+        # Export to Google Sheets (best-effort)
         try:
             sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
             print(f"✅ Exported to Google Sheets: {sheet_url}")
         except Exception as e:
             print(f"⚠️ Failed to export to Google Sheets: {e}")
 
-        return delta_sum <= delta_threshold, parsed_flag, df_merged
-
+        return delta_ok, parsed_flag, df_merged
