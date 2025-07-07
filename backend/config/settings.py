@@ -156,4 +156,4 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # === SLACK ===
 SLACK_BOT_TOKEN = config("SLACK_BOT_TOKEN", default="")
-SLACK_CHANNEL_ID = config("SLACK_CHANNEL_ID", default="")
+SLACK_CHANNEL_ID = config("SLACK_CHANNEL_ID", default="C08HZ13JDC5")
