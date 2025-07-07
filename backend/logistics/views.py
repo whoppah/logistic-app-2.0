@@ -130,53 +130,105 @@ class AnalyticsView(APIView):
         }, status=status.HTTP_200_OK)
 
 class SlackMessagesView(APIView):
-    """
-    GET /slack/messages/ → return recent messages + reply counts
-    """
     def get(self, request):
-        slack = SlackService()
-        msgs = slack.get_latest_messages(limit=50)
+        try:
+            slack = SlackService()
+            msgs  = slack.get_latest_messages(limit=50)
+        except Exception as e:
+            # catch both RuntimeError (missing env) or SlackApiError
+            print(f"❌ SlackMessagesView error: {e}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
 
-        # For each message, note how many replies (thread_ts !== ts)
         out = []
         for m in msgs:
-            ts = m.get("ts")
-            thread_ts = m.get("thread_ts")
-            
-            parent_ts = thread_ts if thread_ts and thread_ts != ts else ts
-
-            replies = [msg for msg in msgs if msg.get("thread_ts") == parent_ts and msg.get("ts") != parent_ts]
-            out.append({
-                "ts": ts,
-                "user": m.get("user"),
-                "user_name": m.get("user_profile", {}).get("real_name") or m.get("user"),
-                "text": m.get("text"),
-                "ts_float": float(ts),
-                "reply_count": len(replies),
-            })
+            try:
+                ts = m.get("ts")
+                if not ts:
+                    continue
+                parent_ts = m.get("thread_ts") if m.get("thread_ts") != ts else ts
+                replies = [
+                    msg for msg in msgs
+                    if msg.get("thread_ts") == parent_ts and msg.get("ts") != parent_ts
+                ]
+                out.append({
+                    "ts":          ts,
+                    "user_name":   m.get("user_profile", {}).get("real_name", m.get("user")),
+                    "text":        m.get("text", ""),
+                    "reply_count": len(replies),
+                })
+            except Exception as inner:
+                print(f"⚠️ Skipping malformed message entry: {inner}")
+                continue
 
         return Response(out, status=status.HTTP_200_OK)
 
 
 class SlackThreadView(APIView):
     """
-    GET /slack/threads/?thread_ts=12345 → return the thread messages
+    GET /logistics/slack/threads/?thread_ts=12345 → return the thread messages
     """
     def get(self, request):
         thread_ts = request.query_params.get("thread_ts")
         if not thread_ts:
-            return Response({"error": "Missing thread_ts"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Missing thread_ts parameter."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        slack = SlackService()
-        messages = slack.get_thread(thread_ts, limit=100)
+        # Initialize SlackService, validating env vars
+        try:
+            slack = SlackService()
+        except Exception as e:
+            # Could be missing token or channel in settings
+            print(f"❌ SlackThreadView init error: {e}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
+        # Fetch the thread from Slack
+        try:
+            messages = slack.get_thread(thread_ts, limit=100)
+        except SlackApiError as e:
+            print(f"❌ Slack API error in get_thread: {e.response['error']}")
+            return Response(
+                {"error": "Failed to fetch thread from Slack."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+        except Exception as e:
+            print(f"❌ Unexpected error in get_thread: {e}")
+            return Response(
+                {"error": "Internal error fetching Slack thread."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Build the response, skipping any malformed entries
         out = []
         for m in messages:
+            ts_val = m.get("ts")
+            text   = m.get("text", "")
+            user   = m.get("user")
+            user_name = m.get("user_profile", {}).get("real_name") or user
+
+            if not ts_val:
+                # skip entries without a timestamp
+                continue
+
+            try:
+                ts_float = float(ts_val)
+            except (TypeError, ValueError) as e:
+                print(f"⚠️ Skipping message with invalid ts `{ts_val}`: {e}")
+                continue
+
             out.append({
-                "ts":           m.get("ts"),
-                "user":         m.get("user"),
-                "user_name":    m.get("user_profile", {}).get("real_name") or m.get("user"),
-                "text":         m.get("text"),
-                "ts_float":     float(m.get("ts")),
+                "ts":        ts_val,
+                "ts_float":  ts_float,
+                "user":      user,
+                "user_name": user_name,
+                "text":      text,
             })
+
         return Response(out, status=status.HTTP_200_OK)
