@@ -1,22 +1,21 @@
 # backend/logistics/views.py
 import uuid
 import redis
+
 from django.conf import settings
+from celery import chain
 from celery.result import AsyncResult
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 
-# Redis client for storing uploads
+from .tasks import load_invoice_bytes, evaluate_delta, export_sheet
+
 redis_client = redis.from_url(settings.REDIS_URL)
 
 
 class UploadInvoiceFile(APIView):
-    """
-    Upload invoice files and store them temporarily in Redis.
-    Returns redis-like keys to use in /check-delta/.
-    """
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -32,9 +31,7 @@ class UploadInvoiceFile(APIView):
             ext = f.name.rsplit(".", 1)[-1].lower()
             key = str(uuid.uuid4())
             raw = f.read()
-            # store under "upload:<key>" for 10 minutes
             redis_client.setex(f"upload:{key}", 600, raw)
-
             if ext in ("xlsx", "xls"):
                 redis_key = key
             elif ext == "pdf":
@@ -48,8 +45,8 @@ class UploadInvoiceFile(APIView):
 
 class CheckDeltaView(APIView):
     """
-    Endpoint to start the delta‐check Celery pipeline.
-    Returns a task_id to poll.
+    Instead of firing only the wrapper task, build and dispatch the chain
+    and return *that* chain’s ID so the front-end polls the real long-running job.
     """
 
     def post(self, request):
@@ -62,22 +59,20 @@ class CheckDeltaView(APIView):
             return Response({"error": "Missing required fields."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # Lazy-import so heavy libs stay out of web process
-        from .tasks import process_invoice_pipeline
+        # Build & launch the exact same chain as your wrapper did:
+        job = chain(
+            load_invoice_bytes.s(redis_key, redis_key_pdf),
+            evaluate_delta.s(partner, delta_threshold),
+            export_sheet.s(partner)
+        )()
 
-        task = process_invoice_pipeline.delay(
-            partner=partner,
-            redis_key=redis_key,
-            redis_key_pdf=redis_key_pdf,
-            delta_threshold=delta_threshold
-        )
-        return Response({"task_id": task.id}, status=status.HTTP_202_ACCEPTED)
+        # Return the *chain* ID (i.e. the ID of the last sub-task)
+        return Response({"task_id": job.id}, status=status.HTTP_202_ACCEPTED)
 
 
 class TaskStatusView(APIView):
     """
-    Poll this to get current state of a Celery task.
-    Returns {"state": "PENDING"|"STARTED"|"SUCCESS"|"FAILURE"|...}.
+    Poll the real chain ID until it reaches SUCCESS or FAILURE.
     """
 
     def get(self, request):
@@ -92,7 +87,7 @@ class TaskStatusView(APIView):
 
 class TaskResultView(APIView):
     """
-    Once TaskStatus returns SUCCESS, GET here to fetch the payload.
+    Once TaskStatusView returns state==="SUCCESS", fetch the final payload.
     """
 
     def get(self, request):
@@ -106,5 +101,4 @@ class TaskResultView(APIView):
             return Response({"error": "Not ready", "state": res.state},
                             status=status.HTTP_202_ACCEPTED)
 
-        # res.result is the final dict from export_sheet
         return Response(res.result or {}, status=status.HTTP_200_OK)
