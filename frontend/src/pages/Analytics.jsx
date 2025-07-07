@@ -2,12 +2,18 @@
 import { useEffect, useState } from 'react';
 
 export default function Analytics() {
+  const API_BASE = import.meta.env.VITE_API_URL || "";
   const [analyticsData, setAnalyticsData] = useState(null);
 
   useEffect(() => {
     async function fetchAnalytics() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/analytics`);
+        const res = await fetch(
+          `${API_BASE}/logistics/analytics/`
+        );
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}`);
+        }
         const json = await res.json();
         setAnalyticsData(json);
       } catch (error) {
@@ -16,7 +22,7 @@ export default function Analytics() {
     }
 
     fetchAnalytics();
-  }, []);
+  }, [API_BASE]);
 
   return (
     <div className="space-y-6">
