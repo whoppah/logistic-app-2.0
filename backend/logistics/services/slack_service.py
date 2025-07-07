@@ -27,6 +27,23 @@ class SlackService:
             print(f"Error fetching messages: {e.response['error']}")
             return []
 
+    def get_latest_messages(self, limit=10):
+        try:
+            resp = self.client.conversations_history(channel=self.channel, limit=limit)
+            return resp.get("messages", [])
+        except SlackApiError as e:
+            err = e.response["error"]
+            print(f"Error fetching messages: {err}")
+            if err == "channel_not_found":
+                # debug: list private channels your bot can see
+                try:
+                    lst = self.client.conversations_list(types="private_channel", limit=100)
+                    chans = {c["name"]: c["id"] for c in lst.get("channels", [])}
+                    print("Bot is in these private channels:", chans)
+                except SlackApiError as list_err:
+                    print("Failed to list private channels:", list_err.response["error"])
+            return []
+
     def download_file(self, file_id):
         try:
             file_info = self.client.files_info(file=file_id)
