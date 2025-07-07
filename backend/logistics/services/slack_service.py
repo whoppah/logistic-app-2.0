@@ -44,6 +44,21 @@ class SlackService:
         except SlackApiError as e:
             print(f"Error fetching file info: {e.response['error']}")
             return None
+            
+    def get_thread(self, thread_ts, limit=50):
+        """
+        Return up to `limit` messages in the thread starting at thread_ts.
+        """
+        try:
+            resp = self.client.conversations_replies(
+                channel=self.channel,
+                ts=thread_ts,
+                limit=limit,
+            )
+            return resp.get("messages", [])
+        except SlackApiError as e:
+            print(f"Error fetching thread: {e.response['error']}")
+            return []
 
     def react_to_message(self, ts, emoji_name):
         try:
@@ -62,3 +77,4 @@ class SlackService:
     def extract_partner(self, message_text):
         match = re.search(r'Partner:\s*([\w_]+)', message_text)
         return match.group(1).lower() if match else None
+
