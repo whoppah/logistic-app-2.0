@@ -1,6 +1,6 @@
 // frontend/src/components/ChannelHeader.jsx
 import React from "react";
-import { HashStraight as Hashtag } from "lucide-react";
+import { Hash as Hashtag } from "lucide-react";
 
 export default function ChannelHeader({ name }) {
   return (
