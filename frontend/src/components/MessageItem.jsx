@@ -1,6 +1,5 @@
 // frontend/src/components/MessageItem.jsx
 import React from "react";
-import axios from "axios";
 import {
   UserCircle2,
   MessageSquare,
@@ -8,16 +7,16 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 
-export default function MessageItem({ msg, isSelected, onOpenThread }) {
-  const time = new Date(parseFloat(msg.ts) * 1000)
-    .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-  const toggleReaction = async (name) => {
-    await axios.post(
-      `${import.meta.env.VITE_API_URL}/logistics/slack/react/`,
-      { ts: msg.ts, reaction: name }
-    );
-  };
+export default function MessageItem({
+  msg,
+  isSelected,
+  onOpenThread,
+  onReact,
+}) {
+  const time = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div
@@ -25,21 +24,26 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
         isSelected ? "bg-gray-100 rounded-lg" : ""
       }`}
     >
-      {/* floating bar */}
+      {/* floating reaction bar */}
       <div
-        className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ zIndex: 10 }}
+        className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
       >
-        <button onClick={() => toggleReaction("white_check_mark")} className="p-1 bg-white rounded hover:bg-gray-200">
+        <button
+          onClick={() => onReact(msg.ts, "white_check_mark")}
+          className="p-1 bg-white rounded hover:bg-gray-200"
+        >
           ✅
         </button>
-        <button onClick={() => toggleReaction("large_red_square")} className="p-1 bg-white rounded hover:bg-gray-200">
+        <button
+          onClick={() => onReact(msg.ts, "large_red_square")}
+          className="p-1 bg-white rounded hover:bg-gray-200"
+        >
           🟥
         </button>
       </div>
-      
 
       <UserCircle2 className="w-8 h-8 text-gray-400" />
+
       <div className="flex-1">
         {/* header */}
         <div className="flex items-baseline space-x-2">
@@ -55,7 +59,7 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
         {/* attachments */}
         {msg.files?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {msg.files.map(f => {
+            {msg.files.map((f) => {
               const isPdf = f.mimetype === "application/pdf";
               const isXlsx = f.mimetype.includes("spreadsheet");
               return (
@@ -88,7 +92,7 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
             {msg.reactions.map((r) => (
               <button
                 key={r.name}
-                onClick={() => toggleReaction(r.name)}
+                onClick={() => onReact(msg.ts, r.name)}
                 className="inline-flex items-center bg-gray-200 hover:bg-gray-300 rounded px-2 py-1 text-xs"
               >
                 <span className="mr-1">
@@ -99,6 +103,7 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
             ))}
           </div>
         )}
+
         {/* reply count */}
         {msg.reply_count > 0 && (
           <button
