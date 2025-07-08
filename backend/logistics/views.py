@@ -130,14 +130,16 @@ class AnalyticsView(APIView):
             "avg_delta":   round(avg_delta, 2),
             "top_partner": top_partner,
         }, status=status.HTTP_200_OK)
-
 class SlackMessagesView(APIView):
+    """
+    GET /logistics/slack/messages/
+    Returns the last 50 messages in channel, with reply counts, reactions, and file info.
+    """
     def get(self, request):
         try:
             slack = SlackService()
-            msgs  = slack.get_latest_messages(limit=50)
+            msgs = slack.get_latest_messages(limit=50)
         except Exception as e:
-            # catch both RuntimeError (missing env) or SlackApiError
             print(f"❌ SlackMessagesView error: {e}")
             return Response(
                 {"error": str(e)},
@@ -146,31 +148,53 @@ class SlackMessagesView(APIView):
 
         out = []
         for m in msgs:
-            try:
-                ts = m.get("ts")
-                if not ts:
-                    continue
-                parent_ts = m.get("thread_ts") if m.get("thread_ts") != ts else ts
-                replies = [
-                    msg for msg in msgs
-                    if msg.get("thread_ts") == parent_ts and msg.get("ts") != parent_ts
-                ]
-                out.append({
-                    "ts":          ts,
-                    "user_name":   m.get("user_profile", {}).get("real_name", m.get("user")),
-                    "text":        m.get("text", ""),
-                    "reply_count": len(replies),
-                })
-            except Exception as inner:
-                print(f"⚠️ Skipping malformed message entry: {inner}")
+            ts = m.get("ts")
+            if not ts:
                 continue
+
+            # count replies in this batch
+            parent_ts = m.get("thread_ts") if m.get("thread_ts") != ts else ts
+            replies = [
+                msg for msg in msgs
+                if msg.get("thread_ts") == parent_ts and msg.get("ts") != parent_ts
+            ]
+
+            # assemble files array
+            files = []
+            for f in m.get("files", []):
+                files.append({
+                    "id":       f.get("id"),
+                    "name":     f.get("name"),
+                    "mimetype": f.get("mimetype"),
+                    "url":      f.get("url_private"),
+                })
+
+            # assemble reactions array
+            reactions = []
+            for r in m.get("reactions", []):
+                reactions.append({
+                    "name":     r.get("name"),
+                    "count":    r.get("count"),
+                    "me":       r.get("users", []),  # list of user IDs who reacted
+                })
+
+            out.append({
+                "ts":           ts,
+                "user":         m.get("user"),
+                "user_name":    m.get("user_profile", {}).get("real_name", m.get("user")),
+                "text":         m.get("text", ""),
+                "reply_count":  len(replies),
+                "reactions":    reactions,
+                "files":        files,
+            })
 
         return Response(out, status=status.HTTP_200_OK)
 
 
 class SlackThreadView(APIView):
     """
-    GET /logistics/slack/threads/?thread_ts=12345 → return the thread messages
+    GET /logistics/slack/threads/?thread_ts=12345
+    Returns up to 100 messages in the given thread, with reactions & files.
     """
     def get(self, request):
         thread_ts = request.query_params.get("thread_ts")
@@ -180,19 +204,8 @@ class SlackThreadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Initialize SlackService, validating env vars
         try:
             slack = SlackService()
-        except Exception as e:
-            # Could be missing token or channel in settings
-            print(f"❌ SlackThreadView init error: {e}")
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        # Fetch the thread from Slack
-        try:
             messages = slack.get_thread(thread_ts, limit=100)
         except SlackApiError as e:
             print(f"❌ Slack API error in get_thread: {e.response['error']}")
@@ -207,48 +220,72 @@ class SlackThreadView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        # Build the response, skipping any malformed entries
         out = []
         for m in messages:
-            ts_val = m.get("ts")
-            text   = m.get("text", "")
-            user   = m.get("user")
-            user_name = m.get("user_profile", {}).get("real_name") or user
-
-            if not ts_val:
-                # skip entries without a timestamp
+            ts = m.get("ts")
+            if not ts:
                 continue
 
-            try:
-                ts_float = float(ts_val)
-            except (TypeError, ValueError) as e:
-                print(f"⚠️ Skipping message with invalid ts `{ts_val}`: {e}")
-                continue
+            # files
+            files = []
+            for f in m.get("files", []):
+                files.append({
+                    "id":       f.get("id"),
+                    "name":     f.get("name"),
+                    "mimetype": f.get("mimetype"),
+                    "url":      f.get("url_private"),
+                })
+
+            # reactions
+            reactions = []
+            for r in m.get("reactions", []):
+                reactions.append({
+                    "name":  r.get("name"),
+                    "count": r.get("count"),
+                    "me":    r.get("users", []),
+                })
 
             out.append({
-                "ts":        ts_val,
-                "ts_float":  ts_float,
-                "user":      user,
-                "user_name": user_name,
-                "text":      text,
+                "ts":           ts,
+                "ts_float":     float(ts),
+                "user":         m.get("user"),
+                "user_name":    m.get("user_profile", {}).get("real_name", m.get("user")),
+                "text":         m.get("text", ""),
+                "reactions":    reactions,
+                "files":        files,
             })
 
         return Response(out, status=status.HTTP_200_OK)
-        
+
+
 class SlackReactView(APIView):
     """
-    POST /logistics/slack/react/ 
-    { ts: "...", reaction: "white_check_mark" }
+    POST /logistics/slack/react/
+    Body: { ts: "...", reaction: "white_check_mark" }
+    Toggles the given reaction on the given message.
     """
     def post(self, request):
-        ts = request.data.get("ts")
+        ts       = request.data.get("ts")
         reaction = request.data.get("reaction")
         if not ts or not reaction:
-            return Response({"error": "Missing ts or reaction"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Missing ts or reaction"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        slack = SlackService()
         try:
+            slack = SlackService()
             slack.react_to_message(ts, reaction)
-            return Response({"ok": True})
+            return Response({"ok": True}, status=status.HTTP_200_OK)
         except SlackApiError as e:
-            return Response({"error": e.response["error"]}, status=status.HTTP_502_BAD_GATEWAY)
+            print(f"❌ SlackReactView error: {e.response['error']}")
+            return Response(
+                {"error": e.response["error"]},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+        except Exception as e:
+            print(f"❌ SlackReactView unexpected error: {e}")
+            return Response(
+                {"error": "Internal error adding reaction"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
