@@ -28,7 +28,7 @@ class SwdevriesParser(BaseParser):
         df.rename(columns={"Price": "price_swdevries"}, inplace=True)
         df.columns = df.columns.str.strip()
         df.reset_index(drop=True, inplace=True)
-
+        print("df_price sw is :", df)
         sum_price = round(df["price_swdevries"].sum(), 2)
         if abs(total_value - sum_price) > 0.01:
             print(f"[WARN] Total mismatch: Invoice says {total_value}, parsed sum is {sum_price}")
