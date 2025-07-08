@@ -1,6 +1,5 @@
 // frontend/src/components/MessageItem.jsx
 import React from "react";
-import axios from "axios";
 import {
   UserCircle2,
   MessageSquare,
@@ -12,51 +11,26 @@ export default function MessageItem({
   msg,
   isSelected,
   onOpenThread,
-  onReact = () => {},           
+  onReact,
 }) {
   const time = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  const toggleReaction = async (name) => {
-    try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/logistics/slack/react/`,
-        { ts: msg.ts, reaction: name }
-      );
-      onReact(msg.ts, name);     
-    } catch (err) {
-      console.error("Reaction error", err);
-    }
+  const handleReact = async (name) => {
+    await onReact(msg.ts, name);
   };
 
   return (
     <div
-      className={`relative group flex space-x-3 p-2 ${
-        isSelected ? "bg-gray-100 rounded-lg" : ""
+      className={`relative group flex space-x-3 p-3 ${
+        isSelected ? "bg-gray-100 rounded-lg" : "hover:bg-gray-50"
       }`}
     >
-      {/* floating bar */}
-      <div
-        className="absolute top-1 right-1 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ zIndex: 10 }}
-      >
-        <button
-          onClick={() => toggleReaction("white_check_mark")}
-          className="p-1 bg-white rounded hover:bg-gray-200"
-        >
-          ✅
-        </button>
-        <button
-          onClick={() => toggleReaction("large_red_square")}
-          className="p-1 bg-white rounded hover:bg-gray-200"
-        >
-          🟥
-        </button>
-      </div>
+      {/* avatar */}
+      <UserCircle2 className="w-8 h-8 text-gray-400 flex-shrink-0" />
 
-      <UserCircle2 className="w-8 h-8 text-gray-400" />
       <div className="flex-1">
         {/* header */}
         <div className="flex items-baseline space-x-2">
@@ -66,7 +40,7 @@ export default function MessageItem({
           <span className="text-xs text-gray-400">{time}</span>
         </div>
 
-        {/* text */}
+        {/* body text */}
         <p className="mt-1 text-gray-700">{msg.text}</p>
 
         {/* attachments */}
@@ -99,36 +73,50 @@ export default function MessageItem({
           </div>
         )}
 
-        {/* reactions */}
-        {msg.reactions?.length > 0 && (
-          <div className="mt-2 flex space-x-1">
-            {msg.reactions.map((r) => (
-              <button
-                key={r.name}
-                onClick={() => toggleReaction(r.name)}
-                className="inline-flex items-center bg-gray-200 hover:bg-gray-300 rounded px-2 py-1 text-xs"
-              >
-                <span className="mr-1">
-                  {r.name === "white_check_mark" ? "✅" : "🟥"}
-                </span>
-                <span>{r.count}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {/* reactions row */}
+        <div className="mt-2 flex items-center space-x-2">
+          {msg.reactions?.map((r) => (
+            <button
+              key={r.name}
+              onClick={() => handleReact(r.name)}
+              className="inline-flex items-center bg-gray-200 hover:bg-gray-300 rounded px-2 py-1 text-xs"
+            >
+              <span className="mr-1">
+                {r.name === "white_check_mark" ? "✅" : "🟥"}
+              </span>
+              <span>{r.count}</span>
+            </button>
+          ))}
 
-        {/* reply count */}
-        {msg.reply_count > 0 && (
-          <button
-            onClick={onOpenThread}
-            className="mt-2 flex items-center space-x-1 text-xs text-blue-600 hover:underline"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>
-              {msg.reply_count} repl{msg.reply_count > 1 ? "ies" : "y"}
-            </span>
-          </button>
-        )}
+          {/* reply count button */}
+          {msg.reply_count > 0 && (
+            <button
+              onClick={onOpenThread}
+              className="flex items-center space-x-1 text-xs text-blue-600 hover:underline"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>
+                {msg.reply_count} repl{msg.reply_count > 1 ? "ies" : "y"}
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* floating reaction picker (on hover) */}
+      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => handleReact("white_check_mark")}
+          className="p-1 bg-white rounded hover:bg-gray-200"
+        >
+          ✅
+        </button>
+        <button
+          onClick={() => handleReact("large_red_square")}
+          className="ml-1 p-1 bg-white rounded hover:bg-gray-200"
+        >
+          🟥
+        </button>
       </div>
     </div>
   );
