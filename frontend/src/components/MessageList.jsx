@@ -8,8 +8,11 @@ export default function MessageList({
   onReact,
   selectedThreadTs,
 }) {
-  // group by calendar date
-  const byDate = messages.reduce((acc, m) => {
+  // 1) filter out any bad entries
+  const valid = messages.filter((m) => m && m.ts);
+
+  // 2) group by calendar date
+  const byDate = valid.reduce((acc, m) => {
     const date = new Date(parseFloat(m.ts) * 1000).toLocaleDateString();
     acc[date] = acc[date] || [];
     acc[date].push(m);
@@ -25,14 +28,15 @@ export default function MessageList({
           </div>
           <div className="space-y-4">
             {msgs
-              .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts)) // oldest first
+              // 3) chronological: oldest first
+              .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts))
               .map((msg) => (
                 <MessageItem
                   key={msg.ts}
                   msg={msg}
                   isSelected={msg.ts === selectedThreadTs}
                   onOpenThread={() => onOpenThread(msg.ts)}
-                  onReact={onReact}
+                  onReact={onReact}         
                 />
               ))}
           </div>
