@@ -106,6 +106,9 @@ export default function Dashboard() {
     } else if (partner === "tadde") {
       setError("Tadde integration is not implemented yet.");
       return;
+    } else if (partner === "magic_movers") {
+      setError("Magic Movers needs invoices updates to compute the surcharges directly from it.");
+      return;
     }
 
     setError("");
