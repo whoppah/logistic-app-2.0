@@ -37,23 +37,7 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
           🟥
         </button>
       </div>
-       {/* reactions */}
-        {msg.reactions?.length > 0 && (
-          <div className="mt-2 flex space-x-1">
-            {msg.reactions.map((r) => (
-              <button
-                key={r.name}
-                onClick={() => toggleReaction(r.name)}
-                className="inline-flex items-center bg-gray-200 hover:bg-gray-300 rounded px-2 py-1 text-xs"
-              >
-                <span className="mr-1">
-                  {r.name === "white_check_mark" ? "✅" : "🟥"}
-                </span>
-                <span>{r.count}</span>
-              </button>
-            ))}
-          </div>
-        )}
+      
 
       <UserCircle2 className="w-8 h-8 text-gray-400" />
       <div className="flex-1">
@@ -95,6 +79,24 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
                 </a>
               );
             })}
+          </div>
+        )}
+
+        {/* reactions */}
+        {msg.reactions?.length > 0 && (
+          <div className="mt-2 flex space-x-1">
+            {msg.reactions.map((r) => (
+              <button
+                key={r.name}
+                onClick={() => toggleReaction(r.name)}
+                className="inline-flex items-center bg-gray-200 hover:bg-gray-300 rounded px-2 py-1 text-xs"
+              >
+                <span className="mr-1">
+                  {r.name === "white_check_mark" ? "✅" : "🟥"}
+                </span>
+                <span>{r.count}</span>
+              </button>
+            ))}
           </div>
         )}
 
