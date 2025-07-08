@@ -45,4 +45,5 @@ class BrengerDeltaCalculator:
         df_merged["Delta_sum"] = delta_sum
         df_merged["Partner"] = "brenger"
 
-        return df_merged, delta_sum, flag
+        return df_merged[[ "id", "buyer_country-seller_country", "weight", "price", "price_brenger", "Delta", "Delta_sum", "Invoice date", "Invoice number", "date", "ordernummer","price_brenger_incl_btw","Order ID","order_creation_date","weight"]], delta_sum, flag
+
