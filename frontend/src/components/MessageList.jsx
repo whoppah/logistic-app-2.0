@@ -2,8 +2,13 @@
 import React from "react";
 import MessageItem from "./MessageItem";
 
-export default function MessageList({ messages, onOpenThread, selectedThreadTs }) {
-  // Group by date
+export default function MessageList({
+  messages,
+  onOpenThread,
+  onReact,
+  selectedThreadTs,
+}) {
+  // group by calendar date
   const byDate = messages.reduce((acc, m) => {
     const date = new Date(parseFloat(m.ts) * 1000).toLocaleDateString();
     acc[date] = acc[date] || [];
@@ -19,14 +24,17 @@ export default function MessageList({ messages, onOpenThread, selectedThreadTs }
             {date}
           </div>
           <div className="space-y-4">
-            {msgs.map(msg => (
-              <MessageItem
-                key={msg.ts}
-                msg={msg}
-                isSelected={msg.ts === selectedThreadTs}
-                onOpenThread={() => onOpenThread(msg.ts)}
-              />
-            ))}
+            {msgs
+              .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts)) // oldest first
+              .map((msg) => (
+                <MessageItem
+                  key={msg.ts}
+                  msg={msg}
+                  isSelected={msg.ts === selectedThreadTs}
+                  onOpenThread={() => onOpenThread(msg.ts)}
+                  onReact={onReact}
+                />
+              ))}
           </div>
         </div>
       ))}
