@@ -7,6 +7,7 @@ import {
   ArchiveIcon,
   RepeatIcon,
   BoxIcon,
+  Activity
 } from "lucide-react";
 
 const options = [
@@ -16,6 +17,7 @@ const options = [
   { key: "swdevries",   label: "Sw De Vries",   icon: <ArchiveIcon className="h-5 w-5" /> },
   { key: "transpoksi",  label: "Transpoksi",    icon: <RepeatIcon className="h-5 w-5" /> },
   { key: "magic_movers",label: "Magic Movers",  icon: <BoxIcon className="h-5 w-5" /> },
+  { key: "tadde",label: "Tadde",  icon: <Activity className="h-5 w-5" /> },
 ];
 
 export default function PartnerSelector({ partner, setPartner }) {
