@@ -14,9 +14,18 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
     minute: "2-digit",
   });
 
+  const toggleReaction = async (name) => {
+    await axios.post(`${import.meta.env.VITE_API_URL}/logistics/slack/react/`, {
+      ts: msg.ts,
+      reaction: name,
+    });
+  };
+
   return (
     <div
-      className={`flex space-x-3 p-2 ${isSelected ? "bg-gray-100 rounded-lg" : ""}`}
+      className={`flex space-x-3 p-2 ${
+        isSelected ? "bg-gray-100 rounded-lg" : ""
+      }`}
     >
       <UserCircle2 className="w-8 h-8 text-gray-400" />
 
@@ -68,16 +77,12 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
             {msg.reactions.map((r) => (
               <button
                 key={r.name}
+                onClick={() => toggleReaction(r.name)}
                 className="inline-flex items-center bg-gray-200 hover:bg-gray-300 rounded px-2 py-1 text-xs"
-                onClick={async () => {
-                  // toggle reaction via your backend
-                  await axios.post(
-                    `${import.meta.env.VITE_API_URL}/logistics/slack/react/`,
-                    { ts: msg.ts, reaction: r.name }
-                  );
-                }}
               >
-                <span className="mr-1">{r.name.startsWith("white") ? "✅" : "🟥"}</span>
+                <span className="mr-1">
+                  {r.name === "white_check_mark" ? "✅" : "🟥"}
+                </span>
                 <span>{r.count}</span>
               </button>
             ))}
@@ -88,7 +93,7 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
         {msg.reply_count > 0 && (
           <button
             onClick={onOpenThread}
-            className="mt-2 flex items-center space-x-1 text-xs text-gray-500 hover:text-gray-700"
+            className="mt-2 flex items-center space-x-1 text-xs text-blue-600 hover:underline"
           >
             <MessageSquare className="w-4 h-4" />
             <span>
