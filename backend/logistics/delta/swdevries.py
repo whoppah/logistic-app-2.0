@@ -54,7 +54,7 @@ class SwdevriesDeltaCalculator(BaseDeltaCalculator):
 
         df_merged["Delta_sum"] = delta_sum
         df_merged["Partner"] = partner_value
-        print(df_merged)
+        print("df_merged sw is :", df_merged)
         # Print any mismatches
         filtered_df = df_merged[df_merged["Delta"] >= 0][
             ["Order ID", "buyer_country-seller_country", "weight", "price", "price_swdevries", "Delta", "Delta_sum"]
