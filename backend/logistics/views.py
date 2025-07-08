@@ -11,9 +11,11 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.db.models import Avg, Count
 
+
 from .models import InvoiceRun
 from .tasks import load_invoice_bytes, evaluate_delta, export_sheet
 from .services.slack_service import SlackService
+from slack_sdk.errors import SlackApiError
 
 redis_client = redis.from_url(settings.REDIS_URL)
 
@@ -232,3 +234,21 @@ class SlackThreadView(APIView):
             })
 
         return Response(out, status=status.HTTP_200_OK)
+        
+class SlackReactView(APIView):
+    """
+    POST /logistics/slack/react/ 
+    { ts: "...", reaction: "white_check_mark" }
+    """
+    def post(self, request):
+        ts = request.data.get("ts")
+        reaction = request.data.get("reaction")
+        if not ts or not reaction:
+            return Response({"error": "Missing ts or reaction"}, status=status.HTTP_400_BAD_REQUEST)
+
+        slack = SlackService()
+        try:
+            slack.react_to_message(ts, reaction)
+            return Response({"ok": True})
+        except SlackApiError as e:
+            return Response({"error": e.response["error"]}, status=status.HTTP_502_BAD_GATEWAY)
