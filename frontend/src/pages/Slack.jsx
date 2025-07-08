@@ -38,7 +38,7 @@ export default function Slack() {
   return (
     <div className="flex h-screen">
       {/* Main column */}
-      <div className="flex flex-col w-2/3 border-r">
+      <div className={`flex flex-col ${selectedThreadTs ? "w-2/3 border-r" : "w-full"}`} >
         <ChannelHeader name="invoices-logistics" />
 
         <div className="flex-1 overflow-auto bg-white">
