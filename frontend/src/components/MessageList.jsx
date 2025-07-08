@@ -5,10 +5,10 @@ import MessageItem from "./MessageItem";
 export default function MessageList({
   messages,
   onOpenThread,
-  onReact,
+  onOptimisticReact,
+  onSendReact,
   selectedThreadTs,
 }) {
-  // group by calendar date
   const byDate = messages.reduce((acc, m) => {
     const date = new Date(parseFloat(m.ts) * 1000).toLocaleDateString();
     acc[date] = acc[date] || [];
@@ -20,21 +20,20 @@ export default function MessageList({
     <div className="p-4 space-y-6">
       {Object.entries(byDate).map(([date, msgs]) => (
         <div key={date}>
-          {/* date separator */}
           <div className="text-center text-xs text-gray-400 mb-4">
             {date}
           </div>
-
           <div className="space-y-4">
             {msgs
-              .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts)) // oldest → newest
+              .sort((a, b) => parseFloat(a.ts) - parseFloat(b.ts))
               .map((msg) => (
                 <MessageItem
                   key={msg.ts}
                   msg={msg}
                   isSelected={msg.ts === selectedThreadTs}
                   onOpenThread={() => onOpenThread(msg.ts)}
-                  onReact={onReact}
+                  onOptimisticReact={onOptimisticReact}
+                  onSendReact={onSendReact}
                 />
               ))}
           </div>
