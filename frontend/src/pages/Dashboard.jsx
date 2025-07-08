@@ -1,4 +1,4 @@
-//frontend/src/pages/Dashboard.jsx
+// frontend/src/pages/Dashboard.jsx
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import axios from "axios";
 
@@ -8,19 +8,19 @@ import Table from "../components/Table";
 
 export default function Dashboard() {
   const API_BASE = import.meta.env.VITE_API_URL || "";
-  const [partner,    setPartner]   = useState("brenger");
-  const [files,      setFiles]     = useState([]);
-  const [loading,    setLoading]   = useState(false);
-  const [deltaSum,   setDeltaSum]  = useState(0);
-  const [deltaOk,    setDeltaOk]   = useState(false);
-  const [sheetUrl,   setSheetUrl]  = useState("");
-  const [data,       setData]      = useState([]);
-  const [error,      setError]     = useState("");
+  const [partner, setPartner] = useState("brenger");
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [deltaSum, setDeltaSum] = useState(0);
+  const [deltaOk, setDeltaOk] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState("");
+  const [data, setData] = useState([]);
+  const [error, setError] = useState("");
 
-  const [taskId,     setTaskId]    = useState(null);
+  const [taskId, setTaskId] = useState(null);
   const pollRef = useRef(null);
 
-  // clear any polling on unmount
+  // clear polling on unmount
   useEffect(() => () => clearInterval(pollRef.current), []);
 
   const onFiles = useCallback((fileList) => {
@@ -30,31 +30,24 @@ export default function Dashboard() {
   const startPolling = (id) => {
     pollRef.current = setInterval(async () => {
       try {
-        // GET task-status
         const statusRes = await axios.get(
           `${API_BASE}/logistics/task-status/`,
           { params: { task_id: id } }
         );
-        console.log("🕵️ task-status:", statusRes.data);
 
-        // ← check the raw Celery state
         if (statusRes.data.state === "SUCCESS") {
           clearInterval(pollRef.current);
-          // GET task-result
           const resultRes = await axios.get(
             `${API_BASE}/logistics/task-result/`,
             { params: { task_id: id } }
           );
-          console.log("✅ task-result:", resultRes.data);
           applyResult(resultRes.data);
-
         } else if (["FAILURE", "REVOKED"].includes(statusRes.data.state)) {
           clearInterval(pollRef.current);
           setError("Server failed to process the task.");
           setLoading(false);
         }
       } catch (e) {
-        console.error("Polling error:", e);
         clearInterval(pollRef.current);
         setError("Error polling task status.");
         setLoading(false);
@@ -63,12 +56,12 @@ export default function Dashboard() {
   };
 
   const applyResult = (resData) => {
-    console.log("🔧 applyResult payload:", resData);
     const { delta_sum, delta_ok, sheet_url, message } = resData;
-
-    let returnedData = [];
-    if (Array.isArray(resData.data)) returnedData = resData.data;
-    else if (Array.isArray(resData.table_data)) returnedData = resData.table_data;
+    let returnedData = Array.isArray(resData.data)
+      ? resData.data
+      : Array.isArray(resData.table_data)
+      ? resData.table_data
+      : [];
 
     setDeltaSum(delta_sum);
     setDeltaOk(delta_ok);
@@ -89,36 +82,53 @@ export default function Dashboard() {
       setError("Please select at least one file.");
       return;
     }
+
+    // partner‐specific file checks
+    const names = files.map((f) => f.name.toLowerCase());
+    const hasPdf = names.some((n) => n.endsWith(".pdf"));
+    const hasXls = names.some((n) => n.endsWith(".xls") || n.endsWith(".xlsx"));
+
+    if (partner === "libero") {
+      if (!hasPdf || !hasXls) {
+        setError("Libero requires at least one PDF and one Excel file.");
+        return;
+      }
+    } else if (["brenger", "wuunder", "transpoksi"].includes(partner)) {
+      if (!hasPdf) {
+        setError(`${partner} requires at least one PDF file.`);
+        return;
+      }
+    } else if (["swdevries", "magic_movers"].includes(partner)) {
+      if (!hasXls) {
+        setError(`${partner} requires at least one Excel file.`);
+        return;
+      }
+    } else if (partner === "tadde") {
+      setError("Tadde integration is not implemented yet.");
+      return;
+    }
+
     setError("");
     setLoading(true);
-    console.log("🚀 Starting process for partner:", partner);
 
     try {
       // 1️⃣ Upload
       const form = new FormData();
       files.forEach((f) => form.append("file", f));
-      console.log("📤 upload to:", `${API_BASE}/logistics/upload/`);
-      const up = await axios.post(
-        `${API_BASE}/logistics/upload/`,
-        form
-      );
-      console.log("📤 upload response:", up.data);
+      const up = await axios.post(`${API_BASE}/logistics/upload/`, form);
       const { redis_key, redis_key_pdf } = up.data;
 
-      // 2️⃣ Check-delta
+      // 2️⃣ Check‐delta
       const payload = {
         partner,
-        redis_key: redis_key || redis_key_pdf,
+        redis_key: partner === "libero" ? redis_key : redis_key || redis_key_pdf,
         redis_key_pdf,
         delta_threshold: 20,
       };
-      console.log("🛰️ check-delta to:", `${API_BASE}/logistics/check-delta/`, payload);
-
       const res = await axios.post(
         `${API_BASE}/logistics/check-delta/`,
         payload
       );
-      console.log("🛰️ check-delta response:", res.status, res.data);
 
       if (res.status === 202 && res.data.task_id) {
         setTaskId(res.data.task_id);
@@ -127,12 +137,11 @@ export default function Dashboard() {
         applyResult(res.data);
       }
     } catch (e) {
-      console.error("❌ handleSubmit error:", e);
       setError(
         e.response?.data?.error ||
-        e.response?.data?.detail ||
-        e.message ||
-        "Unknown error"
+          e.response?.data?.detail ||
+          e.message ||
+          "Unknown error"
       );
       setLoading(false);
     }
@@ -162,7 +171,7 @@ export default function Dashboard() {
             <div>
               <h2 className="text-xl font-semibold">Delta Summary</h2>
               <p className={`mt-1 text-lg ${deltaOk ? "text-green-600" : "text-red-600"}`}>
-                Total Delta: {deltaSum.toFixed(2)} {deltaOk ? "✅" : "⚠️"}
+                Total Delta: {deltaSum.toFixed(2)} {deltaOk ? "✅" : "🟥"}
               </p>
             </div>
             {sheetUrl && (
@@ -180,5 +189,5 @@ export default function Dashboard() {
         </div>
       )}
     </div>
-);
+  );
 }
