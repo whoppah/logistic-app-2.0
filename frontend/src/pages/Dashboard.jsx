@@ -98,7 +98,7 @@ export default function Dashboard() {
         setError(`${partner} requires at least one PDF file.`);
         return;
       }
-    } else if (["swdevries", "magic_movers"].includes(partner)) {
+    } else if (["swdevries"].includes(partner)) {
       if (!hasXls) {
         setError(`${partner} requires at least one Excel file.`);
         return;
