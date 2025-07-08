@@ -3,7 +3,7 @@ import React from "react";
 import axios from "axios";
 import { X, UserCircle2, FileText, FileSpreadsheet } from "lucide-react";
 
-export default function ThreadSidebar({ threadTs, messages, onClose }) {
+export default function ThreadSidebar({ threadTs, messages=[], onClose }) {
   const headerTime = new Date(parseFloat(threadTs) * 1000).toLocaleString();
 
   const toggleReaction = async (ts, name) => {
