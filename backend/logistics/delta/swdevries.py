@@ -16,7 +16,7 @@ class SwdevriesDeltaCalculator(BaseDeltaCalculator):
             on="Order ID",
             how="inner"
         )
-
+        
         # Load pricing file
         json_path = os.path.join(settings.PRICING_DATA_PATH, "prijslijst_other_partners.json")
         df_price = pd.read_json(json_path)
@@ -54,7 +54,7 @@ class SwdevriesDeltaCalculator(BaseDeltaCalculator):
 
         df_merged["Delta_sum"] = delta_sum
         df_merged["Partner"] = partner_value
-
+        print(df_merged)
         # Print any mismatches
         filtered_df = df_merged[df_merged["Delta"] >= 0][
             ["Order ID", "buyer_country-seller_country", "weight", "price", "price_swdevries", "Delta", "Delta_sum"]
