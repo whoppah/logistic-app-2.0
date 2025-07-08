@@ -1,4 +1,4 @@
-//src/components/PartnerSelector.jsx
+// frontend/src/components/PartnerSelector.jsx
 import React from "react";
 import {
   TruckIcon,
@@ -7,22 +7,28 @@ import {
   ArchiveIcon,
   RepeatIcon,
   BoxIcon,
-  Activity
+  Activity,
 } from "lucide-react";
 
 const options = [
-  { key: "brenger",     label: "Brenger",       icon: <TruckIcon className="h-5 w-5" /> },
-  { key: "wuunder",     label: "Wuunder",       icon: <PackageIcon className="h-5 w-5" /> },
-  { key: "libero",      label: "Libero",        icon: <GlobeIcon className="h-5 w-5" /> },
-  { key: "swdevries",   label: "Sw De Vries",   icon: <ArchiveIcon className="h-5 w-5" /> },
-  { key: "transpoksi",  label: "Transpoksi",    icon: <RepeatIcon className="h-5 w-5" /> },
-  { key: "magic_movers",label: "Magic Movers",  icon: <BoxIcon className="h-5 w-5" /> },
-  { key: "tadde",label: "Tadde",  icon: <Activity className="h-5 w-5" /> },
+  { key: "brenger",      label: "Brenger",       icon: <TruckIcon /> },
+  { key: "wuunder",      label: "Wuunder",       icon: <PackageIcon /> },
+  { key: "libero",       label: "Libero",        icon: <GlobeIcon /> },
+  { key: "swdevries",    label: "Sw De Vries",   icon: <ArchiveIcon /> },
+  { key: "transpoksi",   label: "Transpoksi",    icon: <RepeatIcon /> },
+  { key: "magic_movers", label: "Magic Movers",  icon: <BoxIcon /> },
+  { key: "tadde",        label: "Tadde",         icon: <Activity /> },
 ];
 
 export default function PartnerSelector({ partner, setPartner }) {
   return (
-    <div className="inline-flex bg-muted rounded-full p-1 space-x-1 sidebar-transition">
+    <div
+      className="
+        flex flex-nowrap overflow-x-auto         /* no wrap, scroll on overflow */
+        bg-muted rounded-full p-1 space-x-1
+        sidebar-transition
+      "
+    >
       {options.map((opt) => {
         const active = partner === opt.key;
         return (
@@ -34,11 +40,12 @@ export default function PartnerSelector({ partner, setPartner }) {
               text-sm font-medium transition-colors duration-200
               ${active
                 ? "bg-accent text-white shadow"
-                : "text-primary hover:bg-white"}
+                : "text-primary hover:bg-white"
+              }
             `}
           >
             {React.cloneElement(opt.icon, {
-              className: active ? "h-5 w-5 text-white" : "h-5 w-5 text-primary",
+              className: `h-5 w-5 ${active ? "text-white" : "text-primary"}`,
             })}
             <span>{opt.label}</span>
           </button>
