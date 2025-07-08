@@ -11,15 +11,17 @@ export default function MessageItem({
   msg,
   isSelected,
   onOpenThread,
-  onReact,
+  onOptimisticReact,
+  onSendReact,
 }) {
   const time = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  const handleReact = async (name) => {
-    await onReact(msg.ts, name);
+  const handleReact = (name) => {
+    onOptimisticReact(msg.ts, name);
+    onSendReact(msg.ts, name);
   };
 
   return (
@@ -28,11 +30,9 @@ export default function MessageItem({
         isSelected ? "bg-gray-100 rounded-lg" : "hover:bg-gray-50"
       }`}
     >
-      {/* avatar */}
       <UserCircle2 className="w-8 h-8 text-gray-400 flex-shrink-0" />
 
       <div className="flex-1">
-        {/* header */}
         <div className="flex items-baseline space-x-2">
           <span className="text-sm font-medium text-gray-800">
             {msg.user_name}
@@ -40,10 +40,8 @@ export default function MessageItem({
           <span className="text-xs text-gray-400">{time}</span>
         </div>
 
-        {/* body text */}
         <p className="mt-1 text-gray-700">{msg.text}</p>
 
-        {/* attachments */}
         {msg.files?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {msg.files.map((f) => {
@@ -73,7 +71,6 @@ export default function MessageItem({
           </div>
         )}
 
-        {/* reactions row */}
         <div className="mt-2 flex items-center space-x-2">
           {msg.reactions?.map((r) => (
             <button
@@ -88,7 +85,6 @@ export default function MessageItem({
             </button>
           ))}
 
-          {/* reply count button */}
           {msg.reply_count > 0 && (
             <button
               onClick={onOpenThread}
@@ -103,7 +99,7 @@ export default function MessageItem({
         </div>
       </div>
 
-      {/* floating reaction picker (on hover) */}
+      {/* hover picker */}
       <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={() => handleReact("white_check_mark")}
