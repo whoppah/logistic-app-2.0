@@ -132,41 +132,36 @@ class AnalyticsView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+
 class SlackMessagesView(APIView):
     """
     GET /logistics/slack/messages/
-    Returns the last 50 parent messages in the channel, with
-    reply counts, reactions, and file info.
+    Returns only top‐level messages (thread_ts == ts or no thread_ts),
+    with reply_count, reactions & files.
     """
     def get(self, request):
         try:
             slack = SlackService()
-            # fetch a bit more so we can count replies properly
-            all_msgs = slack.get_latest_messages(limit=100)
+            all_msgs = slack.get_latest_messages(limit=50)
         except Exception as e:
-            print(f"❌ SlackMessagesView error: {e}")
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_502_BAD_GATEWAY
             )
 
-        # keep only messages where thread_ts==ts (true parents)
-        parent_msgs = [
-            m for m in all_msgs
-            if (m.get("thread_ts") or m.get("ts")) == m.get("ts")
-        ]
+        # Build reply index
+        replies_by_parent = {}
+        for m in all_msgs:
+            parent = m.get("thread_ts") or m.get("ts")
+            if parent != m.get("ts"):
+                replies_by_parent.setdefault(parent, []).append(m)
 
         out = []
-        for m in parent_msgs:
+        for m in all_msgs:
             ts = m.get("ts")
-            if not ts:
+            # skip pure replies—only show parents
+            if m.get("thread_ts") and m["thread_ts"] != ts:
                 continue
-
-            # count replies in the full batch
-            replies = [
-                msg for msg in all_msgs
-                if msg.get("thread_ts") == ts and msg.get("ts") != ts
-            ]
 
             # assemble files
             files = [
@@ -184,7 +179,7 @@ class SlackMessagesView(APIView):
                 {
                     "name":  r.get("name"),
                     "count": r.get("count"),
-                    "me":    ts in r.get("users", []),  # did _you_ react?
+                    "me":    ts in r.get("users", []),
                 }
                 for r in m.get("reactions", [])
             ]
@@ -194,18 +189,20 @@ class SlackMessagesView(APIView):
                 "user":         m.get("user"),
                 "user_name":    m.get("user_profile", {}).get("real_name", m.get("user")),
                 "text":         m.get("text", ""),
-                "reply_count":  len(replies),
+                "reply_count":  len(replies_by_parent.get(ts, [])),
                 "reactions":    reactions,
                 "files":        files,
             })
 
+        # sort newest-first
+        out.sort(key=lambda x: float(x["ts"]), reverse=True)
         return Response(out, status=status.HTTP_200_OK)
 
 
 class SlackThreadView(APIView):
     """
     GET /logistics/slack/threads/?thread_ts=12345
-    Returns up to 100 messages in the given thread (parent + replies),
+    Returns parent + all replies in chronological order,
     each with reactions & files.
     """
     def get(self, request):
@@ -220,16 +217,9 @@ class SlackThreadView(APIView):
             slack = SlackService()
             thread_msgs = slack.get_thread(thread_ts, limit=100)
         except SlackApiError as e:
-            print(f"❌ SlackThreadView SlackApiError: {e.response['error']}")
             return Response(
                 {"error": "Failed to fetch thread from Slack."},
                 status=status.HTTP_502_BAD_GATEWAY
-            )
-        except Exception as e:
-            print(f"❌ SlackThreadView error: {e}")
-            return Response(
-                {"error": "Internal error fetching Slack thread."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
         out = []
@@ -267,8 +257,9 @@ class SlackThreadView(APIView):
                 "files":        files,
             })
 
+        # chronological: parent first, then replies
+        out.sort(key=lambda x: x["ts_float"])
         return Response(out, status=status.HTTP_200_OK)
-
 
 class SlackReactView(APIView):
     """
