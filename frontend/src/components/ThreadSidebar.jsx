@@ -1,6 +1,6 @@
 // frontend/src/components/ThreadSidebar.jsx
 import React from "react";
-import { X } from "lucide-react";
+import { X, UserCircle2 } from "lucide-react";
 
 export default function ThreadSidebar({ threadTs, messages, onClose }) {
   const headerTime = new Date(parseFloat(threadTs) * 1000)
