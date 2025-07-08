@@ -6,29 +6,13 @@ import {
   MessageSquare,
   FileText,
   FileSpreadsheet,
-  Check,
-  Square,
 } from "lucide-react";
 
-export default function MessageItem({
-  msg,
-  isSelected,
-  onOpenThread,
-}) {
-  const time = new Date(parseFloat(msg.ts) * 1000)
-    .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-  // send a reaction via backend
-  const handleReact = async (reactionName) => {
-    try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/logistics/slack/react/`,
-        { ts: msg.ts, reaction: reactionName }
-      );
-    } catch (e) {
-      console.error("React error", e);
-    }
-  };
+export default function MessageItem({ msg, isSelected, onOpenThread }) {
+  const time = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div
@@ -78,36 +62,40 @@ export default function MessageItem({
           </div>
         )}
 
-        {/* replies & reactions */}
-        <div className="mt-3 flex items-center space-x-4 text-gray-500">
-          {/* reply count */}
-          {msg.reply_count > 0 && (
-            <button
-              onClick={onOpenThread}
-              className="flex items-center space-x-1 text-xs hover:text-gray-700"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>
-                {msg.reply_count} repl
-                {msg.reply_count > 1 ? "ies" : "y"}
-              </span>
-            </button>
-          )}
+        {/* reactions */}
+        {msg.reactions?.length > 0 && (
+          <div className="mt-2 flex space-x-1">
+            {msg.reactions.map((r) => (
+              <button
+                key={r.name}
+                className="inline-flex items-center bg-gray-200 hover:bg-gray-300 rounded px-2 py-1 text-xs"
+                onClick={async () => {
+                  // toggle reaction via your backend
+                  await axios.post(
+                    `${import.meta.env.VITE_API_URL}/logistics/slack/react/`,
+                    { ts: msg.ts, reaction: r.name }
+                  );
+                }}
+              >
+                <span className="mr-1">{r.name.startsWith("white") ? "✅" : "🟥"}</span>
+                <span>{r.count}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
-          {/* reactions */}
+        {/* reply count */}
+        {msg.reply_count > 0 && (
           <button
-            onClick={() => handleReact("white_check_mark")}
-            className="p-1 hover:bg-gray-200 rounded-full"
+            onClick={onOpenThread}
+            className="mt-2 flex items-center space-x-1 text-xs text-gray-500 hover:text-gray-700"
           >
-            <Check className="w-4 h-4 text-green-500" />
+            <MessageSquare className="w-4 h-4" />
+            <span>
+              {msg.reply_count} repl{msg.reply_count > 1 ? "ies" : "y"}
+            </span>
           </button>
-          <button
-            onClick={() => handleReact("large_red_square")}
-            className="p-1 hover:bg-gray-200 rounded-full"
-          >
-            <Square className="w-4 h-4 text-red-500" />
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
