@@ -7,68 +7,63 @@ import ThreadSidebar from "../components/ThreadSidebar";
 
 export default function Slack() {
   const API = import.meta.env.VITE_API_URL;
-  const [messages, setMessages]         = useState([]);
+  const [messages, setMessages] = useState([]);
   const [selectedThreadTs, setThreadTs] = useState(null);
-  const [threads, setThreads]           = useState({});
-  const [loading, setLoading]           = useState(true);
+  const [threads, setThreads] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  // 1️⃣ Load channel messages once on mount
+  // fetch top‐level messages
   useEffect(() => {
     (async () => {
       try {
         const res = await axios.get(`${API}/logistics/slack/messages/`);
-        setMessages(res.data.filter(m => m && m.ts));  // filter out any bad entries
-      } catch (e) {
-        console.error("Error fetching Slack messages", e);
+        setMessages(res.data);
       } finally {
         setLoading(false);
       }
     })();
   }, [API]);
 
-  // 2️⃣ Open a thread and fetch its replies if needed
+  // open a thread
   const openThread = async (ts) => {
     setThreadTs(ts);
     if (!threads[ts]) {
-      try {
-        const res = await axios.get(`${API}/logistics/slack/threads/`, {
-          params: { thread_ts: ts },
-        });
-        setThreads(t => ({
-          ...t,
-          [ts]: res.data.filter(m => m && m.ts),  
-        }));
-      } catch (e) {
-        console.error("Error fetching Slack thread", e);
-      }
+      const res = await axios.get(`${API}/logistics/slack/threads/`, {
+        params: { thread_ts: ts },
+      });
+      setThreads((t) => ({ ...t, [ts]: res.data }));
     }
   };
 
-  // 3️⃣ Optimistic local reaction update
-  const updateLocalReaction = (ts, name) => {
-    setMessages(msgs =>
-      msgs.map(m => {
-        if (m.ts !== ts) return m;
-        let found = false;
-        const newReactions = (m.reactions || []).map(r => {
-          if (r.name === name) {
-            found = true;
-            return { ...r, count: r.count + 1, me: true };
-          }
-          return r;
-        });
-        if (!found) {
-          newReactions.push({ name, count: 1, me: true });
-        }
-        return { ...m, reactions: newReactions };
-      })
+  // add or remove a reaction
+  const handleReact = async (ts, reaction) => {
+    await axios.post(`${API}/logistics/slack/react/`, { ts, reaction });
+    // immediately refresh just that one message's data:
+    setMessages((msgs) =>
+      msgs.map((m) =>
+        m.ts === ts
+          ? {
+              ...m,
+              // bump the count locally so UI updates instantly:
+              reactions: m.reactions.map((r) =>
+                r.name === reaction
+                  ? { ...r, count: r.count + 1 }
+                  : r
+              ),
+            }
+          : m
+      )
     );
   };
 
   return (
     <div className="flex h-screen">
-      {/* Main column: full width if no thread, 2/3 if thread open */}
-      <div className={`flex flex-col ${selectedThreadTs ? "w-2/3 border-r" : "w-full"}`}>
+      {/* main column */}
+      <div
+        className={`flex flex-col ${
+          selectedThreadTs ? "w-2/3 border-r" : "w-full"
+        }`}
+      >
         <ChannelHeader name="invoices-logistics" />
 
         <div className="flex-1 overflow-auto bg-white">
@@ -78,7 +73,7 @@ export default function Slack() {
             <MessageList
               messages={messages}
               onOpenThread={openThread}
-              onReact={updateLocalReaction}        
+              onReact={handleReact}
               selectedThreadTs={selectedThreadTs}
             />
           )}
@@ -93,7 +88,7 @@ export default function Slack() {
         </div>
       </div>
 
-      {/* Thread sidebar */}
+      {/* sidebar */}
       {selectedThreadTs && (
         <ThreadSidebar
           threadTs={selectedThreadTs}
