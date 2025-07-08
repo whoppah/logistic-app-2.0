@@ -12,53 +12,71 @@ export default function Slack() {
   const [threads, setThreads] = useState({});
   const [loading, setLoading] = useState(true);
 
-  // fetch top‐level messages
+  // 1️⃣ Load channel messages once on mount
   useEffect(() => {
     (async () => {
       try {
         const res = await axios.get(`${API}/logistics/slack/messages/`);
-        setMessages(res.data);
+        setMessages(res.data.filter((m) => m && m.ts));
+      } catch (e) {
+        console.error("Error fetching Slack messages", e);
       } finally {
         setLoading(false);
       }
     })();
   }, [API]);
 
-  // open a thread
+  // 2️⃣ Open a thread and fetch its replies if needed
   const openThread = async (ts) => {
     setThreadTs(ts);
     if (!threads[ts]) {
-      const res = await axios.get(`${API}/logistics/slack/threads/`, {
-        params: { thread_ts: ts },
-      });
-      setThreads((t) => ({ ...t, [ts]: res.data }));
+      try {
+        const res = await axios.get(`${API}/logistics/slack/threads/`, {
+          params: { thread_ts: ts },
+        });
+        setThreads((t) => ({
+          ...t,
+          [ts]: res.data.filter((m) => m && m.ts),
+        }));
+      } catch (e) {
+        console.error("Error fetching Slack thread", e);
+      }
     }
   };
 
-  // add or remove a reaction
-  const handleReact = async (ts, reaction) => {
-    await axios.post(`${API}/logistics/slack/react/`, { ts, reaction });
-    // immediately refresh just that one message's data:
+  // 3️⃣ Optimistic local reaction update
+  const optimisticReact = (ts, name) => {
     setMessages((msgs) =>
-      msgs.map((m) =>
-        m.ts === ts
-          ? {
-              ...m,
-              // bump the count locally so UI updates instantly:
-              reactions: m.reactions.map((r) =>
-                r.name === reaction
-                  ? { ...r, count: r.count + 1 }
-                  : r
-              ),
-            }
-          : m
-      )
+      msgs.map((m) => {
+        if (m.ts !== ts) return m;
+        let found = false;
+        const newReactions = (m.reactions || []).map((r) => {
+          if (r.name === name) {
+            found = true;
+            return { ...r, count: r.count + 1, me: true };
+          }
+          return r;
+        });
+        if (!found) {
+          newReactions.push({ name, count: 1, me: true });
+        }
+        return { ...m, reactions: newReactions };
+      })
     );
+  };
+
+  // 4️⃣ Fire off to backend/slack — errors can be ignored here, UI already updated
+  const sendReact = async (ts, reaction) => {
+    try {
+      await axios.post(`${API}/logistics/slack/react/`, { ts, reaction });
+    } catch (e) {
+      console.error("Error sending reaction", e);
+    }
   };
 
   return (
     <div className="flex h-screen">
-      {/* main column */}
+      {/* Main column */}
       <div
         className={`flex flex-col ${
           selectedThreadTs ? "w-2/3 border-r" : "w-full"
@@ -73,7 +91,9 @@ export default function Slack() {
             <MessageList
               messages={messages}
               onOpenThread={openThread}
-              onReact={handleReact}
+              // pass both helpers down
+              onOptimisticReact={optimisticReact}
+              onSendReact={sendReact}
               selectedThreadTs={selectedThreadTs}
             />
           )}
@@ -88,7 +108,7 @@ export default function Slack() {
         </div>
       </div>
 
-      {/* sidebar */}
+      {/* Thread sidebar */}
       {selectedThreadTs && (
         <ThreadSidebar
           threadTs={selectedThreadTs}
