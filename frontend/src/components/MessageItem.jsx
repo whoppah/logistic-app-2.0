@@ -99,7 +99,6 @@ export default function MessageItem({ msg, isSelected, onOpenThread }) {
             ))}
           </div>
         )}
-
         {/* reply count */}
         {msg.reply_count > 0 && (
           <button
