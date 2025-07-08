@@ -12,4 +12,5 @@ urlpatterns = [
     path("analytics/", AnalyticsView.as_view(), name="analytics"),
     path("slack/messages/", SlackMessagesView.as_view(), name="slack-messages"),
     path("slack/threads/",  SlackThreadView.as_view(), name="slack-threads"),
+    path("slack/react/", SlackReactView.as_view(), name="slack-react"),
 ]
