@@ -189,7 +189,7 @@ class SlackMessagesView(APIView):
                 "user":         m.get("user"),
                 "user_name":    m.get("user_profile", {}).get("real_name", m.get("user")),
                 "text":         m.get("text", ""),
-                "reply_count":  len(replies_by_parent.get(ts, [])),
+                "reply_count":  m.get("reply_count", 0),
                 "reactions":    reactions,
                 "files":        files,
             })
