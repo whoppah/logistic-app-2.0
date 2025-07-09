@@ -136,16 +136,20 @@ class AnalyticsView(APIView):
 class SlackMessagesView(APIView):
     """
     GET /logistics/slack/messages/
-    Returns only top‐level messages, with reply_count, reactions, files, user_name & avatar.
+    Returns only top‐level messages (thread_ts == ts or no thread_ts),
+    with reply_count, reactions & files.
     """
     def get(self, request):
         try:
-            slack    = SlackService()
+            slack = SlackService()
             all_msgs = slack.get_latest_messages(limit=50)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
 
-        # build a map of replies per parent
+        # Build reply index
         replies_by_parent = {}
         for m in all_msgs:
             parent = m.get("thread_ts") or m.get("ts")
@@ -155,24 +159,26 @@ class SlackMessagesView(APIView):
         out = []
         for m in all_msgs:
             ts = m.get("ts")
-            # skip individual replies in the top‐level feed
+            # skip pure replies—only show parents
             if m.get("thread_ts") and m["thread_ts"] != ts:
                 continue
 
+            # assemble files
             files = [
                 {
-                    "id":       f["id"],
-                    "name":     f["name"],
-                    "mimetype": f["mimetype"],
-                    "url":      f["url_private"],
+                    "id":       f.get("id"),
+                    "name":     f.get("name"),
+                    "mimetype": f.get("mimetype"),
+                    "url":      f.get("url_private"),
                 }
                 for f in m.get("files", [])
             ]
 
+            # assemble reactions
             reactions = [
                 {
-                    "name":  r["name"],
-                    "count": r["count"],
+                    "name":  r.get("name"),
+                    "count": r.get("count"),
                     "me":    ts in r.get("users", []),
                 }
                 for r in m.get("reactions", [])
@@ -180,15 +186,15 @@ class SlackMessagesView(APIView):
 
             out.append({
                 "ts":           ts,
-                "user_name":    m.get("user_name", m.get("user")),
-                "user_avatar":  m.get("user_avatar"),
+                "user":         m.get("user"),
+                "user_name":    m.get("user_profile", {}).get("real_name", m.get("user")),
                 "text":         m.get("text", ""),
-                "reply_count":  len(replies_by_parent.get(ts, [])),
+                "reply_count":  m.get("reply_count", 0),
                 "reactions":    reactions,
                 "files":        files,
             })
 
-        # newest‐first
+        # sort newest-first
         out.sort(key=lambda x: float(x["ts"]), reverse=True)
         return Response(out, status=status.HTTP_200_OK)
 
@@ -196,20 +202,25 @@ class SlackMessagesView(APIView):
 class SlackThreadView(APIView):
     """
     GET /logistics/slack/threads/?thread_ts=12345
-    Returns parent + all replies in chronological order.
+    Returns parent + all replies in chronological order,
+    each with reactions & files.
     """
     def get(self, request):
         thread_ts = request.query_params.get("thread_ts")
         if not thread_ts:
-            return Response({"error": "Missing thread_ts"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Missing thread_ts parameter."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
-            slack       = SlackService()
+            slack = SlackService()
             thread_msgs = slack.get_thread(thread_ts, limit=100)
-        except SlackApiError:
-            return Response({"error": "Failed to fetch thread"},
-                            status=status.HTTP_502_BAD_GATEWAY)
+        except SlackApiError as e:
+            return Response(
+                {"error": "Failed to fetch thread from Slack."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
 
         out = []
         for m in thread_msgs:
@@ -219,18 +230,18 @@ class SlackThreadView(APIView):
 
             files = [
                 {
-                    "id":       f["id"],
-                    "name":     f["name"],
-                    "mimetype": f["mimetype"],
-                    "url":      f["url_private"],
+                    "id":       f.get("id"),
+                    "name":     f.get("name"),
+                    "mimetype": f.get("mimetype"),
+                    "url":      f.get("url_private"),
                 }
                 for f in m.get("files", [])
             ]
 
             reactions = [
                 {
-                    "name":  r["name"],
-                    "count": r["count"],
+                    "name":  r.get("name"),
+                    "count": r.get("count"),
                     "me":    ts in r.get("users", []),
                 }
                 for r in m.get("reactions", [])
@@ -239,34 +250,45 @@ class SlackThreadView(APIView):
             out.append({
                 "ts":           ts,
                 "ts_float":     float(ts),
-                "user_name":    m.get("user_name", m.get("user")),
-                "user_avatar":  m.get("user_avatar"),
+                "user":         m.get("user"),
+                "user_name":    m.get("user_profile", {}).get("real_name", m.get("user")),
                 "text":         m.get("text", ""),
                 "reactions":    reactions,
                 "files":        files,
             })
 
-        # sort oldest‐first
+        # chronological: parent first, then replies
         out.sort(key=lambda x: x["ts_float"])
         return Response(out, status=status.HTTP_200_OK)
-
 
 class SlackReactView(APIView):
     """
     POST /logistics/slack/react/
     Body: { ts: "...", reaction: "white_check_mark" }
+    Adds/removes the given reaction on the given message.
     """
     def post(self, request):
         ts       = request.data.get("ts")
         reaction = request.data.get("reaction")
         if not ts or not reaction:
-            return Response({"error": "Missing ts or reaction"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Missing ts or reaction"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
             slack = SlackService()
             slack.react_to_message(ts, reaction)
             return Response({"ok": True}, status=status.HTTP_200_OK)
         except SlackApiError as e:
-            return Response({"error": e.response["error"]},
-                            status=status.HTTP_502_BAD_GATEWAY)
-
+            print(f"❌ SlackReactView SlackApiError: {e.response['error']}")
+            return Response(
+                {"error": e.response["error"]},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+        except Exception as e:
+            print(f"❌ SlackReactView error: {e}")
+            return Response(
+                {"error": "Internal error adding reaction"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
