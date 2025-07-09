@@ -19,14 +19,7 @@ class SlackService:
         self.save_path = os.path.join(settings.BASE_DIR, "backend", "logistics", "slack")
         os.makedirs(self.save_path, exist_ok=True)
 
-    def get_latest_messages(self, limit=10):
-        try:
-            response = self.client.conversations_history(channel=self.channel, limit=limit)
-            return response.get("messages", [])
-        except SlackApiError as e:
-            print(f"Error fetching messages: {e.response['error']}")
-            return []
-
+    
     def get_latest_messages(self, limit=10):
         try:
             resp = self.client.conversations_history(channel=self.channel,limit=limit,include_all_metadata=True, include_reply_count=True)
