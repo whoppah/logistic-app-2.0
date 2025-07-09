@@ -90,7 +90,6 @@ class DeltaChecker:
 
         # Append to list for further aggregation or export
         if not df_merged.empty:
-            df_merged["Type"]    = "data"
             df_merged["partner"] = partner
             df_list.append(df_merged)
         elif delta_sum == 0 and parsed_flag:
