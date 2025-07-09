@@ -1,6 +1,7 @@
 // frontend/src/components/MessageItem.jsx
 import React from "react";
 import {
+  UserCircle2,
   MessageSquare,
   FileText,
   FileSpreadsheet,
@@ -29,19 +30,9 @@ export default function MessageItem({
         isSelected ? "bg-gray-100 rounded-lg" : "hover:bg-gray-50"
       }`}
     >
-      {/* avatar */}
-      {msg.user_avatar ? (
-        <img
-          src={msg.user_avatar}
-          alt={msg.user_name}
-          className="w-8 h-8 rounded-full flex-shrink-0"
-        />
-      ) : (
-        <div className="w-8 h-8 bg-gray-300 rounded-full flex-shrink-0" />
-      )}
+      <UserCircle2 className="w-8 h-8 text-gray-400 flex-shrink-0" />
 
       <div className="flex-1">
-        {/* header */}
         <div className="flex items-baseline space-x-2">
           <span className="text-sm font-medium text-gray-800">
             {msg.user_name}
@@ -49,10 +40,8 @@ export default function MessageItem({
           <span className="text-xs text-gray-400">{time}</span>
         </div>
 
-        {/* text */}
         <p className="mt-1 text-gray-700">{msg.text}</p>
 
-        {/* attachments */}
         {msg.files?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {msg.files.map((f) => {
@@ -82,7 +71,6 @@ export default function MessageItem({
           </div>
         )}
 
-        {/* reactions + reply */}
         <div className="mt-2 flex items-center space-x-2">
           {msg.reactions?.map((r) => (
             <button
