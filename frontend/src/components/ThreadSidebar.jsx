@@ -1,16 +1,20 @@
 // frontend/src/components/ThreadSidebar.jsx
 import React from "react";
 import axios from "axios";
-import { X, UserCircle2, FileText, FileSpreadsheet } from "lucide-react";
+import { X, FileText, FileSpreadsheet } from "lucide-react";
 
-export default function ThreadSidebar({ threadTs, messages=[], onClose }) {
+export default function ThreadSidebar({
+  threadTs,
+  messages = [],
+  onClose,
+  onOptimisticReact,
+  onSendReact,
+}) {
   const headerTime = new Date(parseFloat(threadTs) * 1000).toLocaleString();
 
-  const toggleReaction = async (ts, name) => {
-    await axios.post(`${import.meta.env.VITE_API_URL}/logistics/slack/react/`, {
-      ts,
-      reaction: name,
-    });
+  const handleReact = (ts, name) => {
+    onOptimisticReact(ts, name);
+    onSendReact(ts, name);
   };
 
   return (
@@ -29,14 +33,21 @@ export default function ThreadSidebar({ threadTs, messages=[], onClose }) {
       {/* messages */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {messages.map((m) => {
-          const time = new Date(parseFloat(m.ts) * 1000).toLocaleTimeString(
-            [],
-            { hour: "2-digit", minute: "2-digit" }
-          );
+          const time = new Date(parseFloat(m.ts) * 1000)
+            .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
           return (
             <div key={m.ts} className="flex space-x-3">
-              <UserCircle2 className="w-8 h-8 text-gray-400" />
+              {/* avatar */}
+              {m.user_avatar ? (
+                <img
+                  src={m.user_avatar}
+                  alt={m.user_name}
+                  className="w-8 h-8 rounded-full flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-gray-300 rounded-full" />
+              )}
 
               <div className="flex-1">
                 {/* author/time */}
@@ -86,7 +97,7 @@ export default function ThreadSidebar({ threadTs, messages=[], onClose }) {
                     {m.reactions.map((r) => (
                       <button
                         key={r.name}
-                        onClick={() => toggleReaction(m.ts, r.name)}
+                        onClick={() => handleReact(m.ts, r.name)}
                         className="inline-flex items-center bg-gray-200 hover:bg-gray-300 rounded px-2 py-1 text-xs"
                       >
                         <span className="mr-1">
