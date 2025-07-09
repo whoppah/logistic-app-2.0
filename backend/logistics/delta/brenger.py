@@ -40,7 +40,7 @@ class BrengerDeltaCalculator:
 
         unmatched_categories = set()
         prices = []
-        valid_categories = set(self.df_price["CMS category"].unique())
+        price_categories = set(self.df_price["CMS category"].unique())
 
         for _, row in df_merged.iterrows():
             category = row["cat_level_2_and_3"]
@@ -58,7 +58,7 @@ class BrengerDeltaCalculator:
                     break
 
            
-            if category not in valid_categories:
+            if category not in price_categories:
                 unmatched_categories.add(category)
 
             prices.append(matched_price)
@@ -70,10 +70,7 @@ class BrengerDeltaCalculator:
 
         if unmatched_categories:
             print(
-                "[WARN] The following invoice categories had no match in "
-                f"{os.path.basename(self.price_file)}: "
-                + ", ".join(sorted(unmatched_categories))
-            )
+                "[WARN] The following valid CMS categories had no match in the price categories:", unmatched_categories)
 
         df_merged["Delta_sum"] = delta_sum
         df_merged["Partner"]   = "brenger"
