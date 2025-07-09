@@ -81,7 +81,7 @@ class BrengerDeltaCalculator:
         
         cols = [
             "id",
-            "buyer_country-seller-country",
+            "buyer_country-seller_country",
             "cat_level_2_and_3",
             "weight",
             "price",
