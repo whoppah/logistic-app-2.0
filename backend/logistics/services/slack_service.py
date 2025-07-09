@@ -29,7 +29,7 @@ class SlackService:
 
     def get_latest_messages(self, limit=10):
         try:
-            resp = self.client.conversations_history(channel=self.channel, limit=limit)
+            resp = self.client.conversations_history(channel=self.channel,limit=limit,include_all_metadata=True, include_reply_count=True)
             return resp.get("messages", [])
         except SlackApiError as e:
             err = e.response["error"]
