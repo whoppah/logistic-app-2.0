@@ -326,59 +326,48 @@ class PricingMetadataView(APIView):
             "weights":    weights,
         })
 
-
 class PricingLookupView(APIView):
     """
-    GET /logistics/pricing/?partner=brenger&route=NL-NL&category=couches&weight_class=9.0
-    Returns the single matching price or 404 if none.
+    GET /logistics/pricing/
+    Query params: partner, route, category
+    Returns: { prices: { "<weight>": <price>, ... } }
     """
     def get(self, request):
-        partner      = request.query_params.get("partner")
-        route        = request.query_params.get("route")
-        category     = request.query_params.get("category")
-        weight_class = request.query_params.get("weight_class")
-
-        missing = [p for p in ("partner","route","category","weight_class") if not request.query_params.get(p)]
-        if missing:
+        partner  = request.query_params.get("partner")
+        route    = request.query_params.get("route")
+        category = request.query_params.get("category")
+        if not (partner and route and category):
             return Response(
-                {"error": f"Missing parameter(s): {', '.join(missing)}"},
+                {"error": "Missing partner, route or category"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if partner != "brenger":
-            return Response(
-                {"error": f"Unsupported partner: {partner}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # read the pricing table
-        price_path = os.path.join(settings.PRICING_DATA_PATH, "prijslijst_brenger.json")
+        # load your JSON file
+        pricing_path = os.path.join(settings.PRICING_DATA_PATH,
+                                    f"prijslijst_{partner}.json")
         try:
-            df = pd.read_json(price_path)
-        except Exception as e:
+            df = pd.read_json(pricing_path)
+        except Exception:
             return Response(
-                {"error": f"Cannot load pricing file: {e}"},
+                {"error": f"Cannot load pricing for {partner}."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        # filter rows
-        mask = (
-            (df["CMS category"] == category) &
-            (df["Weightclass"] == float(weight_class))
-        )
-        subset = df[mask]
-        if subset.empty:
+        # filter rows matching category & route
+        df = df[
+            (df["CMS category"] == category)
+        ][["Weightclass", route]]
+
+        if df.empty:
             return Response(
                 {"error": "No matching price found."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # take the first match
-        price = subset.iloc[0].get(route)
-        if price is None:
-            return Response(
-                {"error": "No matching price found for that route."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        # build weight→price map
+        weight_map = {
+            str(int(w)): float(p)
+            for w, p in zip(df["Weightclass"], df[route])
+        }
 
-        return Response({"price": price})
+        return Response({"prices": weight_map}, status=status.HTTP_200_OK)
