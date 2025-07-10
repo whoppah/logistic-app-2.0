@@ -3,6 +3,7 @@ import uuid
 import redis
 import os
 import pandas as pd
+import json
 from django.conf import settings
 from celery import chain
 from celery.result import AsyncResult
@@ -296,39 +297,26 @@ class SlackReactView(APIView):
 class PricingMetadataView(APIView):
     """
     GET /logistics/pricing/metadata/?partner=brenger
-    Returns the list of valid routes, categories and weight classes
-    for the given partner.
+    Returns available routes, categories & weight classes for the given partner.
     """
     def get(self, request):
-        partner = request.query_params.get("partner", "").strip().lower()
+        partner = request.query_params.get("partner")
         if partner != "brenger":
-            return Response(
-                {"error": "Only 'brenger' metadata is supported for now."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # for now we only support Brenger
+            return Response({"routes": [], "categories": [], "weights": []})
 
-        # load the same JSON your BrengerDeltaCalculator uses
-        price_path = os.path.join(
-            settings.PRICING_DATA_PATH,
-            "prijslijst_brenger.json"
-        )
+        # load the JSON as a DataFrame
+        price_path = os.path.join(settings.PRICING_DATA_PATH, "prijslijst_brenger.json")
         try:
-            df = pd.read_json(price_path, orient="columns")
+            df = pd.read_json(price_path)
         except Exception as e:
             return Response(
-                {"error": f"Cannot load pricing file: {e}"},
+                {"error": f"Cannot load pricing metadata: {e}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        # columns are: "CMS category", "Weightclass", plus one column per route
-        cols = list(df.columns)
-        if "CMS category" not in cols or "Weightclass" not in cols:
-            return Response(
-                {"error": "Unexpected pricing file format."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        routes     = [c for c in cols if c not in ("CMS category", "Weightclass")]
+        # columns corresponding to route keys are all except CMS category & Weightclass
+        routes     = [c for c in df.columns if c not in ("CMS category", "Weightclass")]
         categories = sorted(df["CMS category"].dropna().unique().tolist())
         weights    = sorted(df["Weightclass"].dropna().unique().tolist())
 
@@ -336,69 +324,61 @@ class PricingMetadataView(APIView):
             "routes":     routes,
             "categories": categories,
             "weights":    weights,
-        }, status=status.HTTP_200_OK)
+        })
 
 
-class PricingLookupView(APIView):
+class PricingView(APIView):
     """
-    GET /logistics/pricing/?partner=brenger&route=NL-NL&category=corner-sofas&weight_class=10
-    Returns {"price": <number>}
+    GET /logistics/pricing/?partner=brenger&route=NL-NL&category=couches&weight_class=9.0
+    Returns the single matching price or 404 if none.
     """
     def get(self, request):
-        partner      = request.query_params.get("partner", "").strip().lower()
-        route        = request.query_params.get("route", "")
-        category     = request.query_params.get("category", "")
-        weight_class = request.query_params.get("weight_class", "")
+        partner      = request.query_params.get("partner")
+        route        = request.query_params.get("route")
+        category     = request.query_params.get("category")
+        weight_class = request.query_params.get("weight_class")
 
-        # minimal validation
-        if partner != "brenger" or not route or not category or not weight_class:
+        missing = [p for p in ("partner","route","category","weight_class") if not request.query_params.get(p)]
+        if missing:
             return Response(
-                {"error": "Must provide partner=brenger, route, category & weight_class."},
+                {"error": f"Missing parameter(s): {', '.join(missing)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        price_path = os.path.join(
-            settings.PRICING_DATA_PATH,
-            "prijslijst_brenger.json"
-        )
+        if partner != "brenger":
+            return Response(
+                {"error": f"Unsupported partner: {partner}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # read the pricing table
+        price_path = os.path.join(settings.PRICING_DATA_PATH, "prijslijst_brenger.json")
         try:
-            df = pd.read_json(price_path, orient="columns")
+            df = pd.read_json(price_path)
         except Exception as e:
             return Response(
                 {"error": f"Cannot load pricing file: {e}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        # coerce types
-        try:
-            wc = float(weight_class)
-        except ValueError:
-            return Response(
-                {"error": "weight_class must be a number."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # filter
-        match = df[
+        # filter rows
+        mask = (
             (df["CMS category"] == category) &
-            (df["Weightclass"]  == wc)
-        ]
-
-        if match.empty or route not in df.columns:
+            (df["Weightclass"] == float(weight_class))
+        )
+        subset = df[mask]
+        if subset.empty:
             return Response(
                 {"error": "No matching price found."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # it’s column‐oriented: match[route] is a Series of one element
-        price = match[route].iloc[0]
-        # ensure numeric
-        try:
-            price = float(price)
-        except Exception:
+        # take the first match
+        price = subset.iloc[0].get(route)
+        if price is None:
             return Response(
-                {"error": "Found price, but cannot parse it."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "No matching price found for that route."},
+                status=status.HTTP_404_NOT_FOUND
             )
 
-        return Response({"price": price}, status=status.HTTP_200_OK)
+        return Response({"price": price})
