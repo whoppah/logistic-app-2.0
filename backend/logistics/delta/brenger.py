@@ -38,12 +38,12 @@ class BrengerDeltaCalculator:
         )
         df_merged["weight"] = df_merged["weight"].astype(float).round(2)
 
-        unmatched_categories = set()
         prices = []
-        price_categories = set(self.df_price["CMS category"].unique())
 
         for _, row in df_merged.iterrows():
             category = row["cat_level_2_and_3"]
+            if not category:
+                category = row["cat_level_1_and_2"]
             weight   = row["weight"]
             route    = row["buyer_country-seller_country"]
 
@@ -57,20 +57,12 @@ class BrengerDeltaCalculator:
                     matched_price = price_row.get(route, 0)
                     break
 
-           
-            if category not in price_categories:
-                unmatched_categories.add(category)
-
             prices.append(matched_price)
 
         df_merged["price"] = prices
         df_merged["Delta"] = df_merged["price_brenger"] - df_merged["price"]
         delta_sum = df_merged["Delta"].sum()
         flag      = bool(df_merged["price"].sum())
-
-        if unmatched_categories:
-            print(
-                "[WARN] The following valid CMS categories had no match in the price categories:", unmatched_categories)
 
         df_merged["Delta_sum"] = delta_sum
         df_merged["Partner"]   = "brenger"
