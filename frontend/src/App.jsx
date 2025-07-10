@@ -6,6 +6,7 @@ import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
 import Slack from "./pages/Slack";
+import Pricing from "./pages/Pricing";
 
 export default function App() {
   const [collapsed, setCollapsed] = useState(false);
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/slack" element={<Slack />} />
+            <Route path="/pricing" element={<Slack />} />
           </Routes>
         </main>
       </div>
