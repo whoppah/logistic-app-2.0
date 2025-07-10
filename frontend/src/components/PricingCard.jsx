@@ -22,8 +22,8 @@ export default function PricingCard({
           <dd>{category}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="font-medium">Weight:</dt>
-          <dd>{weight} kg</dd>
+          <dt className="font-medium">Weight class:</dt>
+          <dd>{weight}</dd>
         </div>
 
         <div className="col-span-full border-t pt-4">
