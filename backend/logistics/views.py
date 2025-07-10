@@ -317,7 +317,7 @@ class PricingMetadataView(APIView):
         # fixed fields:
         cats = list(data.get("CMS category", {}).values())
         # everything else that isn't "CMS category" or "Weightclass"
-        routes = [k for k in data.keys() if k not in ("CMS category", "Weightclass")]
+        routes = [k for k in data.keys() if k not in ("CMS category", "Weightclass","Pakket + Koeriers")]
 
         return Response({
             "categories": sorted(cats),
