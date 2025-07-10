@@ -24,7 +24,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/slack" element={<Slack />} />
-            <Route path="/pricing" element={<Slack />} />
+            <Route path="/pricing" element={<Pricing />} />
           </Routes>
         </main>
       </div>
