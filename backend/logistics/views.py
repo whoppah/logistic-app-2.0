@@ -2,7 +2,7 @@
 import uuid
 import redis
 import os
-import pandas
+import pandas as pd
 from django.conf import settings
 from celery import chain
 from celery.result import AsyncResult
