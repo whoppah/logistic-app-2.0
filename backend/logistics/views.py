@@ -322,7 +322,7 @@ class PricingMetadataView(APIView):
         return Response({
             "categories": sorted(cats),
             "routes":     sorted(routes),
-        }, status=status.HTTP_200_OK)extractt
+        }, status=status.HTTP_200_OK)
 
 class PricingLookupView(APIView):
     """
