@@ -11,9 +11,9 @@ import { Link, useLocation } from "react-router-dom";
 
 const navItems = [
   { to: "/",          label: "Dashboard", icon: <HomeIcon /> },
-  { to: "/analytics", label: "Analytics", icon: <BarChart2Icon /> },
-  { to: "/slack",     label: "Slack",     icon: <MessageCircleIcon /> },
   { to: "/pricing",   label: "Pricing",   icon: <TagIcon /> },
+  { to: "/slack",     label: "Slack",     icon: <MessageCircleIcon /> },
+  { to: "/analytics", label: "Analytics", icon: <BarChart2Icon /> },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed }) {
