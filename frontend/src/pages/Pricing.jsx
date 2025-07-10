@@ -1,23 +1,24 @@
 // frontend/src/pages/Pricing.jsx
 import React, { useEffect, useState } from 'react';
-import PricingCard from '../components/PricingCard';
-import { PartnerSelector } from '../components/PartnerSelector'; 
 import axios from 'axios';
 
+import PartnerSelector from '../components/PartnerSelector';
+import PricingCard    from '../components/PricingCard';
+
 export default function Pricing() {
-  const API = import.meta.env.VITE_API_URL;
-  const [partner, setPartner]     = useState('brenger');
-  const [routes, setRoutes]       = useState([]);
+  const API = import.meta.env.VITE_API_URL || "";
+  const [partner,   setPartner]   = useState('brenger');
+  const [routes,    setRoutes]    = useState([]);
   const [categories, setCategories] = useState([]);
-  const [weights, setWeights]     = useState([]);
+  const [weights,   setWeights]   = useState([]);
 
-  const [route, setRoute]         = useState('');
-  const [category, setCategory]   = useState('');
-  const [weight, setWeight]       = useState('');
-  const [price, setPrice]         = useState(null);
-  const [error, setError]         = useState('');
+  const [route,     setRoute]     = useState('');
+  const [category,  setCategory]  = useState('');
+  const [weight,    setWeight]    = useState('');
+  const [price,     setPrice]     = useState(null);
+  const [error,     setError]     = useState('');
 
- 
+  // load metadata when partner changes
   useEffect(() => {
     async function loadMetadata() {
       if (partner !== 'brenger') {
@@ -25,21 +26,20 @@ export default function Pricing() {
         return;
       }
       try {
-        const res = await axios.get(`${API}/logistics/pricing/metadata/`, {
-          params: { partner }
-        });
-       
+        const res = await axios.get(`${API}/logistics/pricing/metadata/`, { params: { partner } });
         setRoutes(res.data.routes);
         setCategories(res.data.categories);
         setWeights(res.data.weights);
+        setError('');
       } catch (e) {
         console.error('Metadata fetch failed', e);
-        setError('Could not load Brenger metadata');
+        setError(`Could not load metadata for ${partner}`);
       }
     }
     loadMetadata();
   }, [API, partner]);
 
+  // fetch price when everything is selected
   useEffect(() => {
     async function loadPrice() {
       setPrice(null);
@@ -48,7 +48,6 @@ export default function Pricing() {
         const res = await axios.get(`${API}/logistics/pricing/`, {
           params: { partner, route, category, weight_class: weight }
         });
-      
         setPrice(res.data.price);
         setError('');
       } catch (e) {
@@ -66,14 +65,7 @@ export default function Pricing() {
       {/* Partner selector */}
       <div>
         <label className="block mb-1 font-medium">Partner</label>
-        <select
-          value={partner}
-          onChange={e => setPartner(e.target.value)}
-          className="border px-3 py-2 rounded w-48"
-        >
-          <option value="brenger">Brenger</option>
-          {/* add other partners as you support */}
-        </select>
+        <PartnerSelector partner={partner} setPartner={setPartner} />
       </div>
 
       {partner === 'brenger' && (
@@ -81,51 +73,52 @@ export default function Pricing() {
           {/* Route */}
           <div>
             <label className="block mb-1 font-medium">Route</label>
-            <select
+            <input
+              list="routes-list"
               value={route}
               onChange={e => setRoute(e.target.value)}
+              placeholder="Type or select a route"
               className="border px-3 py-2 rounded w-full"
-            >
-              <option value="">Select route</option>
-              {routes.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
+            />
+            <datalist id="routes-list">
+              {routes.map(r => <option key={r} value={r} />)}
+            </datalist>
           </div>
+
           {/* Category */}
           <div>
             <label className="block mb-1 font-medium">Category</label>
-            <select
+            <input
+              list="categories-list"
               value={category}
               onChange={e => setCategory(e.target.value)}
+              placeholder="Type or select a category"
               className="border px-3 py-2 rounded w-full"
-            >
-              <option value="">Select category</option>
-              {categories.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            />
+            <datalist id="categories-list">
+              {categories.map(c => <option key={c} value={c} />)}
+            </datalist>
           </div>
+
           {/* Weight class */}
           <div>
             <label className="block mb-1 font-medium">Weight class</label>
-            <select
+            <input
+              list="weights-list"
               value={weight}
               onChange={e => setWeight(e.target.value)}
+              placeholder="Type or select a weight"
               className="border px-3 py-2 rounded w-full"
-            >
-              <option value="">Select weight</option>
-              {weights.map(w => (
-                <option key={w} value={w}>{w}</option>
-              ))}
-            </select>
+            />
+            <datalist id="weights-list">
+              {weights.map(w => <option key={w} value={w} />)}
+            </datalist>
           </div>
         </div>
       )}
 
       {error && <p className="text-red-600">{error}</p>}
 
-      {/* Pricing result card */}
       {price !== null && (
         <div className="mt-6">
           <PricingCard
