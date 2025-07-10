@@ -1,16 +1,18 @@
-//frontend/src/components/Sidebar.jsx
+// frontend/src/components/Sidebar.jsx
 import {
   MenuIcon,
   HomeIcon,
   BarChart2Icon,
   MessageCircleIcon,
+  TagIcon,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: <HomeIcon /> },
+  { to: "/",          label: "Dashboard", icon: <HomeIcon /> },
   { to: "/analytics", label: "Analytics", icon: <BarChart2Icon /> },
-  { to: "/slack", label: "Slack", icon: <MessageCircleIcon /> },
+  { to: "/slack",     label: "Slack",     icon: <MessageCircleIcon /> },
+  { to: "/pricing",   label: "Pricing",   icon: <TagIcon /> },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed }) {
@@ -18,11 +20,14 @@ export default function Sidebar({ collapsed, setCollapsed }) {
 
   return (
     <div
-      className={`fixed top-0 left-0 h-full bg-white border-r 
-        flex flex-col transition-width duration-300
-        ${collapsed ? "w-16" : "w-64"}`}
+      className={`
+        fixed top-0 left-0 h-full bg-white border-r
+        flex flex-col
+        transition-all duration-300 ease-in-out
+        ${collapsed ? "w-16" : "w-64"}
+      `}
     >
-      {/* Profile */}
+      {/* Profile / Brand */}
       <div className="flex items-center justify-between p-4">
         {!collapsed && (
           <div className="flex items-center space-x-3">
@@ -34,29 +39,39 @@ export default function Sidebar({ collapsed, setCollapsed }) {
             <span className="font-semibold">Logistics 2.0</span>
           </div>
         )}
-        <button onClick={() => setCollapsed(!collapsed)}>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="p-1 rounded hover:bg-gray-100"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
           <MenuIcon className="h-6 w-6 text-gray-600" />
         </button>
       </div>
 
-      {/* Nav */}
+      {/* Navigation */}
       <nav className="flex-1 mt-4">
-        {navItems.map(item => {
+        {navItems.map((item) => {
           const active = pathname === item.to;
           return (
             <Link
               key={item.to}
               to={item.to}
+              title={collapsed ? item.label : undefined}
               className={`
-                flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg
+                flex items-center gap-3
+                px-4 py-3 mx-2 my-1 rounded-lg
                 transition-colors duration-150
                 ${active
                   ? "bg-accent/10 text-accent border-l-4 border-accent"
                   : "text-gray-600 hover:bg-gray-100"}
               `}
-              title={collapsed ? item.label : undefined}
             >
-              <div className="h-5 w-5">{item.icon}</div>
+              <div className="h-5 w-5 flex-shrink-0">
+                {React.cloneElement(item.icon, {
+                  className: active ? "text-accent" : "text-gray-600",
+                  size: 20,
+                })}
+              </div>
               {!collapsed && <span className="font-medium">{item.label}</span>}
             </Link>
           );
@@ -66,7 +81,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       {/* Footer */}
       {!collapsed && (
         <div className="p-4 text-xs text-gray-400">
-          Whoppah
+          &copy; Whoppah
         </div>
       )}
     </div>
