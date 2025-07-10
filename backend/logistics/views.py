@@ -297,34 +297,32 @@ class SlackReactView(APIView):
 class PricingMetadataView(APIView):
     """
     GET /logistics/pricing/metadata/?partner=brenger
-    Returns available routes, categories & weight classes for the given partner.
+    Returns the list of routes (the JSON keys minus the two fixed ones)
+    and the list of categories.
     """
     def get(self, request):
         partner = request.query_params.get("partner")
-        if partner != "brenger":
-            # for now we only support Brenger
-            return Response({"routes": [], "categories": [], "weights": []})
+        if not partner:
+            return Response({"error": "Missing partner"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # load the JSON as a DataFrame
-        price_path = os.path.join(settings.PRICING_DATA_PATH, "prijslijst_brenger.json")
+        path = os.path.join(settings.PRICING_DATA_PATH, f"prijslijst_{partner}.json")
         try:
-            df = pd.read_json(price_path)
-        except Exception as e:
-            return Response(
-                {"error": f"Cannot load pricing metadata: {e}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            return Response({"error": f"No pricing for {partner}"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception:
+            return Response({"error": "Could not load metadata"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # columns corresponding to route keys are all except CMS category & Weightclass
-        routes     = [c for c in df.columns if c not in ("CMS category", "Weightclass", "Pakket + Koeriers")]
-        categories = sorted(df["CMS category"].dropna().unique().tolist())
-        weights    = sorted(df["Weightclass"].dropna().unique().tolist())
+        # fixed fields:
+        cats = list(data.get("CMS category", {}).values())
+        # everything else that isn't "CMS category" or "Weightclass"
+        routes = [k for k in data.keys() if k not in ("CMS category", "Weightclass")]
 
         return Response({
-            "routes":     routes,
-            "categories": categories,
-            "weights":    weights,
-        })
+            "categories": sorted(cats),
+            "routes":     sorted(routes),
+        }, status=status.HTTP_200_OK)extractt
 
 class PricingLookupView(APIView):
     """
