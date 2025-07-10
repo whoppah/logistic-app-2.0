@@ -1,26 +1,36 @@
 // frontend/src/components/PricingCard.jsx
-import React from 'react';
+import React from 'react'
 
-export default function PricingCard({ partner, route, category, prices }) {
+export default function PricingCard({
+  partner,
+  route,
+  category,
+  weight,
+  price,
+}) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow space-y-4">
+    <div className="max-w-sm bg-white rounded-xl shadow p-6 space-y-4">
       <h2 className="text-xl font-semibold">{partner} Pricing</h2>
-      <p className="text-gray-600">
-        <strong>Route:</strong> {route}<br/>
-        <strong>Category:</strong> {category}
-      </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(prices).map(([weight, price]) => (
-          <div
-            key={weight}
-            className="border rounded-lg p-4 flex flex-col items-center"
-          >
-            <span className="text-lg font-medium">{weight} kg</span>
-            <span className="text-2xl font-bold mt-2">€{price.toFixed(2)}</span>
-          </div>
-        ))}
-      </div>
+      <dl className="grid grid-cols-1 gap-y-2 text-gray-700">
+        <div className="flex justify-between">
+          <dt className="font-medium">Route:</dt>
+          <dd>{route}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="font-medium">Category:</dt>
+          <dd>{category}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="font-medium">Weight:</dt>
+          <dd>{weight} kg</dd>
+        </div>
+
+        <div className="col-span-full border-t pt-4">
+          <dt className="font-medium">Price:</dt>
+          <dd className="mt-1 text-3xl font-bold">€{price.toFixed(2)}</dd>
+        </div>
+      </dl>
     </div>
-  );
+  )
 }
