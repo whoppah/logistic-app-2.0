@@ -316,7 +316,7 @@ class PricingMetadataView(APIView):
             )
 
         # columns corresponding to route keys are all except CMS category & Weightclass
-        routes     = [c for c in df.columns if c not in ("CMS category", "Weightclass")]
+        routes     = [c for c in df.columns if c not in ("CMS category", "Weightclass", "Pakket + Koeriers")]
         categories = sorted(df["CMS category"].dropna().unique().tolist())
         weights    = sorted(df["Weightclass"].dropna().unique().tolist())
 
