@@ -327,7 +327,7 @@ class PricingMetadataView(APIView):
         })
 
 
-class PricingView(APIView):
+class PricingLookupView(APIView):
     """
     GET /logistics/pricing/?partner=brenger&route=NL-NL&category=couches&weight_class=9.0
     Returns the single matching price or 404 if none.
