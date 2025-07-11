@@ -42,6 +42,20 @@ export default function Analytics() {
 
   return (
     <div className="space-y-8">
+      {/* ── Top‐level KPIs ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard title="Total Runs"      value={total_runs} />
+        <StatCard
+          title="Avg Δ per Run"
+          value={`€${(+avg_delta_per_run).toFixed(2)}`}
+        />
+        <StatCard
+          title="Avg Overcharge per Order"
+          value={`€${(+avg_over_per_order).toFixed(2)}`}
+          variant="warning"
+        />
+      </div>
+
       {/* ── Loss by Partner & Country ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <BarChartCard
@@ -58,20 +72,6 @@ export default function Analytics() {
         />
       </div>
       
-      {/* ── Top‐level KPIs ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Total Runs"      value={total_runs} />
-        <StatCard
-          title="Avg Δ per Run"
-          value={`€${(+avg_delta_per_run).toFixed(2)}`}
-        />
-        <StatCard
-          title="Avg Overcharge per Order"
-          value={`€${(+avg_over_per_order).toFixed(2)}`}
-          variant="warning"
-        />
-      </div>
-
       {/* ── New Widget 1: Time‐Series Trend ────────────────────────────── */}
       <LineChartCard
         title="Monthly Over-Charge Trend"
