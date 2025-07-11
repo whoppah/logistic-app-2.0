@@ -69,17 +69,18 @@ class BrengerDeltaCalculator:
 
         
         cols = [
+            "order_creation_date",
+            "Order ID",
             "id",
+            "weight",
             "buyer_country-seller_country",
             "cat_level_1_and_2",
             "cat_level_2_and_3",
-            "weight",
             "price",
             "price_brenger",
             "Delta",
             "Delta_sum",
             "Invoice date",
-            "Invoice number",
-            "Order ID",
+            "Invoice number"
         ]
         return df_merged[cols], delta_sum, flag
