@@ -149,7 +149,6 @@ docker-compose up --build
 3. `python manage.py migrate && python manage.py collectstatic --noinput`
 4. In one terminal: `./entrypoint.sh web`
 5. In another: `./entrypoint.sh worker`
-6. (Optional) In another: `./entrypoint.sh beat`
 
 ## API Reference
 
