@@ -151,7 +151,7 @@ export default function Analytics() {
         <h2 className="text-xl font-semibold flex items-center">
           Over-Charge by Category & Weight
           <InfoTooltip text="
-            Formula: Category and weight class matrix [C, W], i.e. Σ(Δ where Δ>0 and category=C and weight=W)
+            Formula: Category and weight class matrix [C, W] avg_over, i.e. Σ(Δ where Δ>0 and category=C and weight=W) / count(lines where same C & W)
           " />
         </h2>
         <HeatmapCard
@@ -159,7 +159,7 @@ export default function Analytics() {
           data={category_weight}
           xKey="category"
           yKey="weight"
-          valueKey="over"
+          valueKey="avg_over"
         />
       </div>
     </div>
