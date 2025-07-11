@@ -6,7 +6,6 @@ A Django + Django REST Framework backend with Celery workers and Redis for proce
 
 - [Features](#features)  
 - [Tech Stack](#tech-stack)  
-- [Prerequisites](#prerequisites)  
 - [Getting Started](#getting-started)  
   - [1. Clone Repo](#1-clone-repo)  
   - [2. Backend Setup](#2-backend-setup)  
@@ -22,8 +21,7 @@ A Django + Django REST Framework backend with Celery workers and Redis for proce
 - [Slack Integration](#slack-integration)  
 - [Google Sheets Export](#google-sheets-export)  
 - [Deployment](#deployment)  
-- [Contributing](#contributing)  
-- [License](#license)
+
 
 ## Features
 
@@ -43,12 +41,6 @@ A Django + Django REST Framework backend with Celery workers and Redis for proce
 - **Gunicorn** production WSGI server  
 - **Slack SDK** for notifications  
 - **gspread** for Google Sheets integration  
-
-## Prerequisites
-
-- Docker & Docker Compose (or Python 3.12 + Redis + Postgres locally)  
-- Google service account JSON (for Sheets API)  
-- Slack Bot Token & Channel ID  
 
 ## Getting Started
 
