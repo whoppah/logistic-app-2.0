@@ -4,6 +4,8 @@ import redis
 import os
 import pandas as pd
 import json
+import logging
+from collections import defaultdict
 from django.conf import settings
 from celery import chain
 from celery.result import AsyncResult
@@ -21,7 +23,7 @@ from .services.slack_service import SlackService
 from slack_sdk.errors import SlackApiError
 
 redis_client = redis.from_url(settings.REDIS_URL)
-
+logger = logging.getLogger(__name__)
 
 class UploadInvoiceFile(APIView):
     parser_classes = [MultiPartParser]
@@ -110,60 +112,74 @@ class TaskResultView(APIView):
                             status=status.HTTP_202_ACCEPTED)
 
         return Response(res.result or {}, status=status.HTTP_200_OK)
-
 class AnalyticsView(APIView):
+    """
+    Returns:
+      - total runs processed
+      - average delta per run
+      - top partner by run count
+      - average loss per order
+      - total loss per partner
+      - total loss per buyer country
+    """
     def get(self, request):
-        runs = InvoiceRun.objects.all()
+        try:
+            # 1) Overall runs
+            runs = InvoiceRun.objects.all()
+            total_runs = runs.count()
+            avg_delta_run = runs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
 
-        # 1) Totals & averages
-        total_files = runs.count()
-        avg_delta = runs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
+            top = (
+                runs.values("partner")
+                    .annotate(cnt=Count("id"))
+                    .order_by("-cnt")
+                    .first()
+            )
+            top_partner = top["partner"] if top else None
 
-        # 2) Top partner
-        top = (
-            runs.values("partner")
-                .annotate(cnt=Count("id"))
-                .order_by("-cnt")
-                .first()
-        )
-        top_partner = top["partner"] if top else ""
+            # 2) Loss per order (InvoiceLine-level average of negative deltas)
+            lines = InvoiceLine.objects.all()
+            loss_lines = lines.filter(delta__lt=0).annotate(
+                loss=ExpressionWrapper(-F("delta"), output_field=FloatField())
+            )
+            # average loss per order
+            avg_loss_per_order = loss_lines.aggregate(avg=Avg("loss"))["avg"] or 0.0
 
-        # 3) Average loss per run
-        loss_runs = runs.filter(delta_sum__lt=0).annotate(
-            loss=ExpressionWrapper(-F("delta_sum"), output_field=FloatField())
-        )
-        avg_loss_per_run = loss_runs.aggregate(avg_loss=Avg("loss"))["avg_loss"] or 0.0
+            # 3) Loss per partner
+            # Need to join InvoiceLine → InvoiceRun to get partner
+            lp = (
+                loss_lines
+                .values("run__partner")
+                .annotate(total_loss=Sum("loss"))
+                .order_by("-total_loss")
+            )
+            loss_per_partner = {r["run__partner"]: r["total_loss"] for r in lp}
 
-        # 4) Total loss per partner
-        loss_by_partner = (
-            loss_runs
-            .values("partner")
-            .annotate(total_loss=Sum("loss"))
-            .order_by("-total_loss")
-        )
-        loss_per_partner = {
-            entry["partner"]: entry["total_loss"]
-            for entry in loss_by_partner
-        }
+            # 4) Loss per buyer country
+            country_acc = defaultdict(float)
+            for route, loss in loss_lines.values_list("route", "loss"):
+                buyer_country = route.split("-",1)[0] if route and "-" in route else route or "Unknown"
+                country_acc[buyer_country] += loss
+            # sort descending
+            loss_per_country = dict(
+                sorted(country_acc.items(), key=lambda x: x[1], reverse=True)
+            )
 
-        # 5) Total loss per buyer country (Python aggregation)
-        loss_lines = InvoiceLine.objects.filter(delta__lt=0).values_list("route", "delta")
-        country_losses = defaultdict(float)
-        for route, delta in loss_lines:
-            buyer_country = route.split("-", 1)[0] if route and "-" in route else route or "Unknown"
-            country_losses[buyer_country] += float(-delta)
+            return Response({
+                "total_runs":         total_runs,
+                "avg_delta_per_run":  round(avg_delta_run, 2),
+                "top_partner":        top_partner,
+                "avg_loss_per_order": round(avg_loss_per_order, 2),
+                "loss_per_partner":   {k: float(v) for k,v in loss_per_partner.items()},
+                "loss_per_country":   loss_per_country,
+            }, status=status.HTTP_200_OK)
 
-        # convert to regular dict
-        loss_per_country = dict(sorted(country_losses.items(), key=lambda x: x[1], reverse=True))
-
-        return Response({
-            "total_files":       total_files,
-            "avg_delta":         round(avg_delta, 2),
-            "top_partner":       top_partner,
-            "avg_loss_per_run":  round(avg_loss_per_run, 2),
-            "loss_per_partner":  {k: float(v) for k, v in loss_per_partner.items()},
-            "loss_per_country":  loss_per_country,
-        }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception("AnalyticsView failed")
+            return Response({
+                "error": "Analytics calculation failed",
+                "details": str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SlackMessagesView(APIView):
     """
