@@ -15,6 +15,7 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
         df_merged["weight"] = df_merged["weight"].astype(float).round(2)
         df_merged["shipping_excl_vat"] = df_merged["shipping_excl_vat"].astype(float)
         df_merged['Delta'] = df_merged['price_wuunder'] - df_merged['shipping_excl_vat']
+        df_merged.rename(columns={"order_number":"Order ID"}, inplace=True)
         delta_sum = df_merged['Delta'].sum()
         df_merged['Delta_sum'] =delta_sum
         print("Delta sum is ", delta_sum)
@@ -22,6 +23,21 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
         filtered_df =df_merged.loc[df_merged['Delta']>=0,  ["tracking_id","order_number" ,"buyer_country-seller_country", "weight", "price_wuunder", "shipping_excl_vat", "Delta","Delta_sum"]]
         if not filtered_df.empty:
             print("The following rows have wuunder price higher than one expected from shipping_excl_vat \n",filtered_df)
-        return df_merged[["tracking_id","order_number","buyer_country-seller_country", "weight", "price_wuunder", "shipping_excl_vat", "Delta","Delta_sum"]], delta_sum, flag
+
+        cols = [
+            "order_creation_date",
+            "Order ID",
+            "weight",
+            "buyer_country-seller_country",
+            "cat_level_1_and_2",
+            "cat_level_2_and_3",
+            "price",
+            "price_wuunder",
+            "Delta",
+            "Delta_sum",
+            "Invoice date",
+            "Invoice number"
+        ]
+        return df_merged[cols], delta_sum, flag
         
         
