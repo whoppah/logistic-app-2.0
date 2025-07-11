@@ -115,129 +115,121 @@ class TaskResultView(APIView):
 
 class AnalyticsView(APIView):
     """
-    Returns comprehensive analytics:
-      - total runs & average delta per run
-      - top partner by run count
-      - average over‐charge per order (delta > 0)
-      - over‐charge by partner & country
-      - monthly over‐charge trend
-      - top 5 lossiest routes
-      - over‐charge by category vs weight
+    Returns comprehensive analytics.
     """
     def get(self, request):
-        # 1) Base querysets
-        runs  = InvoiceRun.objects.all()
-        lines = InvoiceLine.objects.all()
+        try:
+            # Base querysets
+            runs  = InvoiceRun.objects.all()
+            lines = InvoiceLine.objects.all()
 
-        # 2) Total runs & average delta per run
-        total_runs        = runs.count()
-        avg_delta_per_run = runs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
+            # 1) Totals & averages
+            total_runs        = runs.count()
+            avg_delta_per_run = runs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
 
-        # 3) Top partner by run count
-        top = (
-            runs.values("partner")
-                .annotate(cnt=Count("id"))
-                .order_by("-cnt")
-                .first()
-        )
-        top_partner = top["partner"] if top else ""
+            # 2) Top partner
+            top = (
+                runs.values("partner")
+                    .annotate(cnt=Count("id"))
+                    .order_by("-cnt")
+                    .first()
+            )
+            top_partner = top["partner"] if top else ""
 
-        # 4) Over‐charge metrics (delta > 0)
-        pos = lines.filter(delta__gt=0).annotate(
-            over=ExpressionWrapper(F("delta"), output_field=FloatField())
-        )
+            # 3) Positive‐delta lines
+            pos = lines.filter(delta__gt=0).annotate(
+                over=ExpressionWrapper(F("delta"), output_field=FloatField())
+            )
+            avg_over_per_order = pos.aggregate(avg=Avg("over"))["avg"] or 0.0
 
-        avg_over_per_order = pos.aggregate(avg=Avg("over"))["avg"] or 0.0
-
-        over_by_partner_qs = (
-            pos.values("run__partner")
-               .annotate(total_over=Sum("over"))
-               .order_by("-total_over")
-        )
-        over_per_partner = {
-            entry["run__partner"]: float(entry["total_over"])
-            for entry in over_by_partner_qs
-        }
-
-        # 5) Over‐charge by buyer country
-        country_acc = defaultdict(float)
-        for route, over in pos.values_list("route", "over"):
-            buyer = route.split("-", 1)[0] if route and "-" in route else route or "Unknown"
-            country_acc[buyer] += over
-        over_per_country = dict(sorted(country_acc.items(), key=lambda x: x[1], reverse=True))
-
-        # 6) Monthly over‐charge trend
-        trend_qs = (
-            pos.annotate(month=TruncMonth("invoice_date"))
-               .values("month", "run__partner")
-               .annotate(total_over=Sum("over"))
-        )
-        trend_dict = defaultdict(dict)
-        partners = set()
-        for rec in trend_qs:
-            m = rec["month"].strftime("%Y-%m")
-            p = rec["run__partner"]
-            trend_dict[m][p] = float(rec["total_over"])
-            partners.add(p)
-        trend_data = [
-            {"month": month, **trend_dict[month]}
-            for month in sorted(trend_dict)
-        ]
-        partners_list = sorted(partners)
-
-        # 7) Top 5 lossiest routes
-        route_qs = (
-            pos.values("route")
-               .annotate(total_over=Sum("over"))
-               .order_by("-total_over")[:5]
-        )
-        top_routes = [
-            {"route": r["route"], "loss": float(r["total_over"])}
-            for r in route_qs
-        ]
-
-        # 8) Top 5 lossy routes (average over-charge per order), safe from div/0
-        route_qs = (
-            pos.values("route")
-               .annotate(
-                   total_over=Sum("over"),
-                   order_count=Count("id"),
-                   total_expected=Sum("price_expected"),
-               )
-               # only keep routes where we actually had an expected price
-               .filter(total_expected__gt=0, order_count__gt=0)
-               .annotate(
-                   avg_over=ExpressionWrapper(
-                       F("total_over") / F("order_count"),
-                       output_field=FloatField()
-                   )
-               )
-               .order_by("-avg_over")[:5]
-        )
-        
-        top_routes = [
-            {
-                "route":     rec["route"],
-                "avg_over":  round(rec["avg_over"], 2),   # € per order
-                "total_over": float(rec["total_over"]),
-                "orders":    rec["order_count"],
+            # 4) Over‐charge by partner
+            over_per_partner = {
+                rec["run__partner"]: float(rec["total_over"])
+                for rec in pos.values("run__partner")
+                             .annotate(total_over=Sum("over"))
+                             .order_by("-total_over")
             }
-            for rec in route_qs
-        ]
 
-        # 9) Build response
-        return Response({
-            "total_runs":           total_runs,
-            "avg_delta_per_run":    round(avg_delta_per_run, 2),
-            "top_partner":          top_partner,
-            "avg_over_per_order":   round(avg_over_per_order, 2),
-            "over_per_partner":     over_per_partner,
-            "over_per_country":     over_per_country,
-            "trend_data":           trend_data,
-            "partners_list":        partners_list,
-            "top_routes":           top_routes,
-            "category_weight":      category_weight,
-        }, status=status.HTTP_200_OK)
+            # 5) Over‐charge by country
+            country_acc = defaultdict(float)
+            for route, over in pos.values_list("route", "over"):
+                buyer = route.split("-",1)[0] if route and "-" in route else route or "Unknown"
+                country_acc[buyer] += over
+            over_per_country = dict(sorted(country_acc.items(), key=lambda x: x[1], reverse=True))
+
+            # 6) Monthly trend
+            trend_dict, partners = defaultdict(dict), set()
+            for rec in pos.annotate(month=TruncMonth("invoice_date")) \
+                          .values("month", "run__partner") \
+                          .annotate(total_over=Sum("over")):
+                m = rec["month"].strftime("%Y-%m")
+                p = rec["run__partner"]
+                trend_dict[m][p] = float(rec["total_over"])
+                partners.add(p)
+
+            trend_data    = [{"month": m, **trend_dict[m]} for m in sorted(trend_dict)]
+            partners_list = sorted(partners)
+
+            # 7) Top 5 lossy routes by **average** over-charge per order
+            route_qs = (
+                pos.values("route")
+                   .annotate(
+                       total_over=Sum("over"),
+                       order_count=Count("id")
+                   )
+                   .filter(order_count__gt=0)
+                   .annotate(
+                       avg_over=ExpressionWrapper(
+                           F("total_over") / F("order_count"),
+                           output_field=FloatField()
+                       )
+                   )
+                   .order_by("-avg_over")[:5]
+            )
+            top_routes = [
+                {
+                    "route":     rec["route"],
+                    "avg_over":  round(rec["avg_over"], 2),
+                    "total_over": float(rec["total_over"]),
+                    "orders":    rec["order_count"],
+                }
+                for rec in route_qs
+            ]
+
+            # 8) Over‐charge by category & weight
+            cat_wt_qs = (
+                pos.values("category_lvl_1_and_2", "weight")
+                   .annotate(total_over=Sum("over"))
+            )
+            category_weight = [
+                {
+                    "category": rec["category_lvl_1_and_2"],
+                    "weight":   float(rec["weight"]),
+                    "over":     float(rec["total_over"])
+                }
+                for rec in cat_wt_qs
+            ]
+
+            return Response({
+                "total_runs":         total_runs,
+                "avg_delta_per_run":  round(avg_delta_per_run, 2),
+                "top_partner":        top_partner,
+                "avg_over_per_order": round(avg_over_per_order, 2),
+                "over_per_partner":   over_per_partner,
+                "over_per_country":   over_per_country,
+                "trend_data":         trend_data,
+                "partners_list":      partners_list,
+                "top_routes":         top_routes,
+                "category_weight":    category_weight,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Print stack to logs and return error to frontend
+            import traceback; traceback.print_exc()
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class SlackMessagesView(APIView):
     """
