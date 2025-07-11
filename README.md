@@ -181,33 +181,5 @@ All endpoints are prefixed with `/logistics/`:
 
 ## Deployment
 
-We deploy via Railway (or Heroku/DigitalOcean):
+We deploy via Railway 
 
-* **Procfile**:
-
-  ```
-  web:    ./entrypoint.sh web
-  worker: ./entrypoint.sh worker
-  beat:   ./entrypoint.sh beat
-  ```
-* Set environment vars in your deployment dashboard.
-* Attach a managed Redis add-on.
-
-## Contributing
-
-1. Fork & create feature branch
-2. Run tests & lint (`pytest`, `flake8`)
-3. Submit a PR against `main`
-
-## License
-
-MIT © Your Company Name
-
-```
----  
-
-**Next steps:**  
-- Verify your `.env` keys & secrets.  
-- Add the frontend README once your UI is in place.  
-- Adjust any partner-specific parser notes or pricing-data paths as needed.
-```
