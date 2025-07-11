@@ -42,7 +42,22 @@ export default function Analytics() {
 
   return (
     <div className="space-y-8">
-
+      {/* ── Loss by Partner & Country ───────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <BarChartCard
+          title="Over-charge by Partner"
+          data={Object.entries(over_per_partner).map(([p, v])=>({ name:p, value:v }))}
+          xKey="name"
+          yKey="value"
+        />
+        <BarChartCard
+          title="Over-charge by Country"
+          data={Object.entries(over_per_country).map(([c, v])=>({ name:c, value:v }))}
+          xKey="name"
+          yKey="value"
+        />
+      </div>
+      
       {/* ── Top‐level KPIs ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard title="Total Runs"      value={total_runs} />
@@ -82,22 +97,6 @@ export default function Analytics() {
         yKey="weight"
         valueKey="over"
       />
-
-      {/* ── Existing: Loss by Partner & Country ───────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BarChartCard
-          title="Over-charge by Partner"
-          data={Object.entries(over_per_partner).map(([p, v])=>({ name:p, value:v }))}
-          xKey="name"
-          yKey="value"
-        />
-        <BarChartCard
-          title="Over-charge by Country"
-          data={Object.entries(over_per_country).map(([c, v])=>({ name:c, value:v }))}
-          xKey="name"
-          yKey="value"
-        />
-      </div>
     </div>
   )
 }
