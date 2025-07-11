@@ -2,31 +2,25 @@
 from django.db import models
 
 PARTNER_CHOICES = [
-    ("brenger", "Brenger"),
-    ("libero", "Libero"),
-    ("swdevries", "Sw De Vries"),
-    ("transpoksi", "Transpoksi"),
-    ("wuunder", "Wuunder"),
+    ("brenger",      "Brenger"),
+    ("libero",       "Libero"),
+    ("swdevries",    "Sw De Vries"),
+    ("transpoksi",   "Transpoksi"),
+    ("wuunder",      "Wuunder"),
     ("magic_movers", "Magic Movers"),
-    ("tadde", "Tadde"),
+    ("tadde",        "Tadde"),
 ]
 
 
 class InvoiceRun(models.Model):
     """
-    Represents a single execution of the invoice delta pipeline for one partner.
+    Represents one execution of the delta pipeline for a single partner.
     """
-    timestamp    = models.DateTimeField(auto_now_add=True)
-    partner      = models.CharField(max_length=50, choices=PARTNER_CHOICES)
-    delta_sum    = models.FloatField(
-        help_text="Sum of all Delta values for this run"
-    )
-    parsed_ok    = models.BooleanField(
-        help_text="True if any invoice rows were successfully parsed"
-    )
-    num_rows     = models.IntegerField(
-        help_text="Number of invoice lines processed"
-    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    partner   = models.CharField(max_length=50, choices=PARTNER_CHOICES)
+    delta_sum = models.FloatField(help_text="Sum of all Delta values for this run")
+    parsed_ok = models.BooleanField(help_text="True if parsing succeeded")
+    num_rows  = models.IntegerField(help_text="Number of invoice lines processed")
 
     class Meta:
         ordering = ["-timestamp"]
@@ -37,78 +31,62 @@ class InvoiceRun(models.Model):
 
 class InvoiceLine(models.Model):
     """
-    One row of the delta comparison output, linked to an InvoiceRun.
+    One row of the delta comparison, linked to an InvoiceRun.
+    Defines a separate 'price_<partner>' field for each partner.
     """
     run = models.ForeignKey(
         InvoiceRun,
         related_name="lines",
         on_delete=models.CASCADE,
-        help_text="The parent InvoiceRun for this row"
+        help_text="Parent InvoiceRun"
     )
 
-    order_creation_date      = models.DateTimeField(
-        help_text="When the order was created in the system"
-    )
-    order_id                 = models.CharField(
-        "Order ID",
-        max_length=100,
-        db_index=True,
-        help_text="UUID or identifier of the order"
-    )
-    weight                   = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Weight (kg) as parsed from the invoice"
-    )
-    route                    = models.CharField(
-        "buyer_country-seller_country",
-        max_length=31,
-        help_text="Concatenated route key, e.g. NL-DE"
-    )
-    category_lvl_1_and_2     = models.CharField(
-        max_length=100,
-        help_text="Category level 1 and 2"
-    )
-    category_lvl_2_and_3     = models.CharField(
-        max_length=100,
-        help_text="Category level 2 and 3"
-    )
+    order_creation_date      = models.DateTimeField(help_text="Order creation timestamp")
+    order_id                 = models.CharField("Order ID", max_length=100, db_index=True)
+    weight                   = models.DecimalField(max_digits=10, decimal_places=2)
+    route                    = models.CharField("buyer_country-seller_country", max_length=31)
+    category_lvl_1_and_2     = models.CharField(max_length=100)
+    category_lvl_2_and_3     = models.CharField(max_length=100)
 
     price_expected           = models.DecimalField(
         "price",
-        max_digits=12,
-        decimal_places=2,
+        max_digits=12, decimal_places=2,
         help_text="Expected price from internal CMS"
     )
-    price_actual             = models.DecimalField(
-        "price_{partner}",
-        max_digits=12,
-        decimal_places=2,
-        help_text="Actual price charged by the partner"
+
+    price_brenger            = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    price_libero             = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    price_swdevries          = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    price_transpoksi         = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    price_wuunder            = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    price_magic_movers       = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    price_tadde              = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
     )
 
     delta                    = models.DecimalField(
-        "Delta",
-        max_digits=12,
-        decimal_places=2,
-        help_text="Difference = actual - expected"
+        "Delta", max_digits=12, decimal_places=2,
+        help_text="Actual minus expected"
     )
     delta_sum                = models.DecimalField(
-        "Delta_sum",
-        max_digits=14,
-        decimal_places=2,
-        help_text="Total delta for the parent run"
+        "Delta_sum", max_digits=14, decimal_places=2,
+        help_text="Total delta for parent run"
     )
 
-    invoice_date             = models.DateField(
-        "Invoice date",
-        help_text="Date on the invoice"
-    )
-    invoice_number           = models.CharField(
-        max_length=100,
-        db_index=True,
-        help_text="Invoice identifier"
-    )
+    invoice_date             = models.DateField("Invoice date")
+    invoice_number           = models.CharField(max_length=100, db_index=True)
 
     class Meta:
         ordering = ["-run__timestamp", "order_creation_date"]
@@ -118,7 +96,4 @@ class InvoiceLine(models.Model):
         ]
 
     def __str__(self):
-        return (
-            f"{self.order_creation_date:%Y-%m-%d} | {self.order_id} | "
-            f"Δ={self.delta:+.2f}"
-        )
+        return f"{self.order_creation_date:%Y-%m-%d} | {self.order_id} | Δ={self.delta:+.2f}"
