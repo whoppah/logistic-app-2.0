@@ -196,28 +196,31 @@ class AnalyticsView(APIView):
             for r in route_qs
         ]
 
-        # 8) Top 5 lossy routes (average over-charge per order)
+        # 8) Top 5 lossy routes (average over-charge per order), safe from div/0
         route_qs = (
             pos.values("route")
                .annotate(
-                   total_over=Sum("over"),               # total € over-charged
-                   order_count=Count("id"),              # number of invoice lines/orders
+                   total_over=Sum("over"),
+                   order_count=Count("id"),
+                   total_expected=Sum("price_expected"),
                )
+               # only keep routes where we actually had an expected price
+               .filter(total_expected__gt=0, order_count__gt=0)
                .annotate(
                    avg_over=ExpressionWrapper(
                        F("total_over") / F("order_count"),
                        output_field=FloatField()
                    )
                )
-               .order_by("-avg_over")[:5]               # top 5 by avg_over
+               .order_by("-avg_over")[:5]
         )
         
         top_routes = [
             {
-                "route":      rec["route"],
-                "avg_over":   round(rec["avg_over"], 2),   # € per order
+                "route":     rec["route"],
+                "avg_over":  round(rec["avg_over"], 2),   # € per order
                 "total_over": float(rec["total_over"]),
-                "orders":     rec["order_count"],
+                "orders":    rec["order_count"],
             }
             for rec in route_qs
         ]
