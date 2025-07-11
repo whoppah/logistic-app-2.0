@@ -1,5 +1,7 @@
 # backend/logistics/models.py
+
 from django.db import models
+from django.db.models import Q, UniqueConstraint
 
 PARTNER_CHOICES = [
     ("brenger",      "Brenger"),
@@ -18,19 +20,32 @@ class InvoiceRun(models.Model):
     """
     timestamp      = models.DateTimeField(auto_now_add=True)
     partner        = models.CharField(max_length=50, choices=PARTNER_CHOICES)
-    invoice_number = models.CharField(max_length=100, db_index=True)
+    invoice_number = models.CharField(
+        max_length=100,
+        db_index=True,
+        blank=True,
+        default="",
+        help_text="Invoice number (empty for legacy or unparsed runs)"
+    )
     delta_sum      = models.FloatField(help_text="Sum of all Delta values for this run")
     parsed_ok      = models.BooleanField(help_text="True if parsing succeeded")
     num_rows       = models.IntegerField(help_text="Number of invoice lines processed")
 
     class Meta:
         ordering = ["-timestamp"]
-        unique_together = ("partner", "invoice_number")
+        constraints = [
+            UniqueConstraint(
+                fields=["partner", "invoice_number"],
+                condition=~Q(invoice_number=""),
+                name="unique_partner_invoice_number_nonempty"
+            )
+        ]
         verbose_name = "Invoice Run"
         verbose_name_plural = "Invoice Runs"
 
     def __str__(self):
-        return f"{self.invoice_number} | {self.partner} | Δ={self.delta_sum}"
+        num = self.invoice_number or "(no #)"
+        return f"{num} | {self.partner} | Δ={self.delta_sum}"
 
 
 class InvoiceLine(models.Model):
