@@ -82,11 +82,15 @@ export default function Analytics() {
 
       {/* ── New Widget 2: Top 5 Lossy Routes ──────────────────────────── */}
       <BarChartCard
-        title="Top 5 Lossy Routes"
-        data={top_routes}
-        xKey="route"
-        yKey="loss"
-        horizontal
+        title="Top 5 Lossy Routes (Relative)"
+        data={top_routes.map(r => ({
+          name: r.route,
+          value: r.loss_ratio * 100,       
+          total: r.total_over,
+        }))}
+        xKey="name"
+        yKey="value"
+        yFormatter={v => `${v.toFixed(1)}%`}
       />
 
       {/* ── New Widget 3: Category × Weight Heatmap ───────────────────── */}
