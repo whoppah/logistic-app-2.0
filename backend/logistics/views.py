@@ -196,18 +196,30 @@ class AnalyticsView(APIView):
             for r in route_qs
         ]
 
-        # 8) Over‐charge by category & weight
-        cat_wt_qs = (
-            pos.values("category_lvl_1_and_2", "weight")
-               .annotate(total_over=Sum("over"))
+        # 8) Top 5 lossy routes (average over-charge per order)
+        route_qs = (
+            pos.values("route")
+               .annotate(
+                   total_over=Sum("over"),               # total € over-charged
+                   order_count=Count("id"),              # number of invoice lines/orders
+               )
+               .annotate(
+                   avg_over=ExpressionWrapper(
+                       F("total_over") / F("order_count"),
+                       output_field=FloatField()
+                   )
+               )
+               .order_by("-avg_over")[:5]               # top 5 by avg_over
         )
-        category_weight = [
+        
+        top_routes = [
             {
-                "category": rec["category_lvl_1_and_2"],
-                "weight":   float(rec["weight"]),
-                "over":     float(rec["total_over"])
+                "route":      rec["route"],
+                "avg_over":   round(rec["avg_over"], 2),   # € per order
+                "total_over": float(rec["total_over"]),
+                "orders":     rec["order_count"],
             }
-            for rec in cat_wt_qs
+            for rec in route_qs
         ]
 
         # 9) Build response
