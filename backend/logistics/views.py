@@ -196,16 +196,29 @@ class AnalyticsView(APIView):
                 for rec in route_qs
             ]
 
-            # 8) Over‐charge by category & weight
+            # 8) Over-charge by category & weight (average per item)
             cat_wt_qs = (
                 pos.values("category_lvl_1_and_2", "weight")
-                   .annotate(total_over=Sum("over"))
+                   .annotate(
+                       total_over=Sum("over"),
+                       count=Count("id"),
+                   )
+                   .annotate(
+                       avg_over=ExpressionWrapper(
+                           F("total_over") / F("count"),
+                           output_field=FloatField()
+                       )
+                   )
             )
+            
+            # Build a list of { category, weight, avg_over, total_over, count }
             category_weight = [
                 {
-                    "category": rec["category_lvl_1_and_2"],
-                    "weight":   float(rec["weight"]),
-                    "over":     float(rec["total_over"])
+                    "category":    rec["category_lvl_1_and_2"],
+                    "weight":      float(rec["weight"]),
+                    "total_over":  float(rec["total_over"]),
+                    "count":       rec["count"],
+                    "avg_over":    round(rec["avg_over"], 2),
                 }
                 for rec in cat_wt_qs
             ]
