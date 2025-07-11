@@ -2,6 +2,7 @@
 import pandas as pd
 from typing import Optional,Tuple
 from django.conf import settings
+from django.db import transaction
 from logistics.parsers.registry import parser_registry
 from logistics.services.spreadsheet_exporter import SpreadsheetExporter
 from logistics.services.database_service import DatabaseService
