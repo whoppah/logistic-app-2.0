@@ -11,10 +11,11 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
-from django.db.models import Avg, Count
+from django.db.models import Avg, Sum, Count, F, FloatField, ExpressionWrapper, Value, Func
+from django.db.models.functions import Cast
 
+from logistics.models import InvoiceRun, InvoiceLine
 
-from .models import InvoiceRun
 from .tasks import load_invoice_bytes, evaluate_delta, export_sheet
 from .services.slack_service import SlackService
 from slack_sdk.errors import SlackApiError
@@ -112,25 +113,80 @@ class TaskResultView(APIView):
 
 class AnalyticsView(APIView):
     """
-    Returns totals and averages from InvoiceRun.
+    Returns totals, averages, and loss insights:
+      - total files processed
+      - average delta
+      - top partner by run count
+      - average loss per run (where delta_sum < 0)
+      - total loss per partner
+      - total loss per buyer country
     """
 
     def get(self, request):
-        qs = InvoiceRun.objects.all()
-        total_files = qs.count()
-        avg_delta   = qs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
+        # Base queryset of runs
+        runs = InvoiceRun.objects.all()
+
+        # 1) Totals & averages
+        total_files = runs.count()
+        avg_delta = runs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
+
+        # 2) Top partner by number of runs
         top = (
-            qs.values("partner")
-              .annotate(cnt=Count("id"))
-              .order_by("-cnt")
-              .first()
+            runs.values("partner")
+                .annotate(cnt=Count("id"))
+                .order_by("-cnt")
+                .first()
         )
         top_partner = top["partner"] if top else ""
 
+        # 3) Average loss per run (only runs with negative delta_sum)
+        loss_runs = runs.filter(delta_sum__lt=0).annotate(
+            loss=ExpressionWrapper(-F("delta_sum"), output_field=FloatField())
+        )
+        avg_loss_per_run = loss_runs.aggregate(avg_loss=Avg("loss"))["avg_loss"] or 0.0
+
+        # 4) Total loss per partner
+        loss_by_partner_qs = (
+            loss_runs
+            .values("partner")
+            .annotate(total_loss=Sum("loss"))
+            .order_by("-total_loss")
+        )
+        loss_per_partner = {
+            entry["partner"]: entry["total_loss"] for entry in loss_by_partner_qs
+        }
+
+        # 5) Total loss per buyer country
+        #   InvoiceLine.route is "BUYER-SELLER"; split on "-" and take the first part
+        loss_lines = InvoiceLine.objects.filter(delta__lt=0).annotate(
+            loss=ExpressionWrapper(-F("delta"), output_field=FloatField()),
+            buyer_country=Func(
+                F("route"),
+                Value("-"),
+                Value(1),
+                function="split_part",
+                output_field=Cast(output_field=FloatField(), 
+                                  output_field=FloatField())
+            )
+        )
+        loss_by_country_qs = (
+            loss_lines
+            .values("buyer_country")
+            .annotate(total_loss=Sum("loss"))
+            .order_by("-total_loss")
+        )
+        # split_part returns text; cast it back to text for keys
+        loss_per_country = {
+            entry["buyer_country"]: entry["total_loss"] for entry in loss_by_country_qs
+        }
+
         return Response({
-            "total_files": total_files,
-            "avg_delta":   round(avg_delta, 2),
-            "top_partner": top_partner,
+            "total_files":       total_files,
+            "avg_delta":         round(avg_delta, 2),
+            "top_partner":       top_partner,
+            "avg_loss_per_run":  round(avg_loss_per_run, 2),
+            "loss_per_partner":  {k: float(v) for k, v in loss_per_partner.items()},
+            "loss_per_country":  {k: float(v) for k, v in loss_per_country.items()},
         }, status=status.HTTP_200_OK)
 
 
