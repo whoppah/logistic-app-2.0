@@ -72,85 +72,85 @@ class DeltaChecker:
             print(f"❌ Error in DeltaChecker.evaluate: {e}")
             return False, False, None
 
-        def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
-            # 1. Compute the delta
-            df_merged, raw_delta_sum, raw_parsed_flag = compute_fn()
-            if df_merged is None:
-                return False, False, None
-    
-            # 2. Normalize results
-            delta_sum   = float(raw_delta_sum)
-            parsed_flag = bool(raw_parsed_flag)
-            delta_ok    = delta_sum <= float(delta_threshold)
-    
-            # 3. Ensure numeric columns are float
-            for col in ("Delta", "Delta_sum"):
-                if col in df_merged.columns:
-                    df_merged[col] = df_merged[col].astype(float)
-    
-            # 4. Append to df_list for any downstream use
-            if not df_merged.empty:
-                df_merged["partner"] = partner
-                df_list.append(df_merged)
-            elif delta_sum == 0 and parsed_flag:
-                summary = pd.DataFrame([{
-                    "Partner":   partner,
-                    "Delta sum": delta_sum,
-                    "Message":   "All prices match perfectly",
-                    "Type":      "summary"
-                }])
-                df_list.append(summary)
-    
-            # 5. Extract (or default) invoice_number
-            invoice_number = ""
-            if not df_merged.empty:
-                invoice_number = df_merged["Invoice number"].iloc[0] or ""
-    
-            # 6. Create or update InvoiceRun and its lines
-            with transaction.atomic():
-                run, created = InvoiceRun.objects.get_or_create(
-                    partner        = partner,
-                    invoice_number = invoice_number,
-                    defaults={
-                        "delta_sum": delta_sum,
-                        "parsed_ok": parsed_flag,
-                        "num_rows":  len(df_merged),
-                    }
-                )
-                if not created:
-                    # update an existing run
-                    run.delta_sum = delta_sum
-                    run.parsed_ok = parsed_flag
-                    run.num_rows  = len(df_merged)
-                    run.save()
-                    InvoiceLine.objects.filter(run=run).delete()
-    
-                # build and bulk‐create new InvoiceLine rows
-                key_actual = f"price_{partner}"
-                lines = []
-                for rec in df_merged.to_dict(orient="records"):
-                    lines.append(InvoiceLine(
-                        run                   = run,
-                        order_creation_date   = rec["order_creation_date"],
-                        order_id              = rec["Order ID"],
-                        weight                = rec["weight"],
-                        route                 = rec["buyer_country-seller_country"],
-                        category_lvl_1_and_2  = rec["cat_level_1_and_2"],
-                        category_lvl_2_and_3  = rec["cat_level_2_and_3"],
-                        price_expected        = rec["price"],
-                        delta                 = rec["Delta"],
-                        delta_sum             = rec["Delta_sum"],
-                        invoice_date          = rec["Invoice date"],
-                        invoice_number        = invoice_number,
-                        **{ key_actual: rec.get(key_actual) }
-                    ))
-                InvoiceLine.objects.bulk_create(lines)
-    
-            # 7.  Export to Google Sheets
-            try:
-                sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
-                print(f"✅ Exported to Google Sheets: {sheet_url}")
-            except Exception as e:
-                print(f"⚠️ Failed to export to Google Sheets: {e}")
-    
-            return delta_ok, parsed_flag, df_merged
+    def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
+        # 1. Compute the delta
+        df_merged, raw_delta_sum, raw_parsed_flag = compute_fn()
+        if df_merged is None:
+            return False, False, None
+
+        # 2. Normalize results
+        delta_sum   = float(raw_delta_sum)
+        parsed_flag = bool(raw_parsed_flag)
+        delta_ok    = delta_sum <= float(delta_threshold)
+
+        # 3. Ensure numeric columns are float
+        for col in ("Delta", "Delta_sum"):
+            if col in df_merged.columns:
+                df_merged[col] = df_merged[col].astype(float)
+
+        # 4. Append to df_list for any downstream use
+        if not df_merged.empty:
+            df_merged["partner"] = partner
+            df_list.append(df_merged)
+        elif delta_sum == 0 and parsed_flag:
+            summary = pd.DataFrame([{
+                "Partner":   partner,
+                "Delta sum": delta_sum,
+                "Message":   "All prices match perfectly",
+                "Type":      "summary"
+            }])
+            df_list.append(summary)
+
+        # 5. Extract (or default) invoice_number
+        invoice_number = ""
+        if not df_merged.empty:
+            invoice_number = df_merged["Invoice number"].iloc[0] or ""
+
+        # 6. Create or update InvoiceRun and its lines
+        with transaction.atomic():
+            run, created = InvoiceRun.objects.get_or_create(
+                partner        = partner,
+                invoice_number = invoice_number,
+                defaults={
+                    "delta_sum": delta_sum,
+                    "parsed_ok": parsed_flag,
+                    "num_rows":  len(df_merged),
+                }
+            )
+            if not created:
+                # update an existing run
+                run.delta_sum = delta_sum
+                run.parsed_ok = parsed_flag
+                run.num_rows  = len(df_merged)
+                run.save()
+                InvoiceLine.objects.filter(run=run).delete()
+
+            # build and bulk‐create new InvoiceLine rows
+            key_actual = f"price_{partner}"
+            lines = []
+            for rec in df_merged.to_dict(orient="records"):
+                lines.append(InvoiceLine(
+                    run                   = run,
+                    order_creation_date   = rec["order_creation_date"],
+                    order_id              = rec["Order ID"],
+                    weight                = rec["weight"],
+                    route                 = rec["buyer_country-seller_country"],
+                    category_lvl_1_and_2  = rec["cat_level_1_and_2"],
+                    category_lvl_2_and_3  = rec["cat_level_2_and_3"],
+                    price_expected        = rec["price"],
+                    delta                 = rec["Delta"],
+                    delta_sum             = rec["Delta_sum"],
+                    invoice_date          = rec["Invoice date"],
+                    invoice_number        = invoice_number,
+                    **{ key_actual: rec.get(key_actual) }
+                ))
+            InvoiceLine.objects.bulk_create(lines)
+
+        # 7.  Export to Google Sheets
+        try:
+            sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
+            print(f"✅ Exported to Google Sheets: {sheet_url}")
+        except Exception as e:
+            print(f"⚠️ Failed to export to Google Sheets: {e}")
+
+        return delta_ok, parsed_flag, df_merged
