@@ -1,4 +1,4 @@
-//src/pages/Analytics.jsx
+// src/pages/Analytics.jsx
 import { useEffect, useState } from 'react'
 import StatCard from '../components/StatCard'
 import { BarChartCard } from '../components/BarChartCard'
@@ -30,44 +30,46 @@ export default function Analytics() {
     return <p className="text-gray-500">Loading analytics…</p>
   }
 
-  // Provide defaults in case any keys are missing or null
+  // Destructure with defaults matching the new API fields
   const {
-    total_files       = 0,
-    avg_delta         = 0,
-    top_partner       = '',
-    avg_loss_per_run  = 0,
-    loss_per_partner  = {},
-    loss_per_country  = {},
+    total_runs            = 0,
+    avg_delta_per_run     = 0,
+    top_partner           = '',
+    avg_over_per_order    = 0,
+    over_per_partner      = {},
+    over_per_country      = {},
   } = data
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Analytics</h1>
 
+      {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
-          title="Total Files Processed"
-          value={typeof total_files === 'number' ? total_files : 0}
+          title="Total Runs Processed"
+          value={typeof total_runs === 'number' ? total_runs : 0}
         />
         <StatCard
-          title="Average Δ"
-          value={`€${(+avg_delta || 0).toFixed(2)}`}
+          title="Average Δ per Run"
+          value={`€${(+avg_delta_per_run || 0).toFixed(2)}`}
         />
         <StatCard
-          title="Avg Loss per Run"
-          value={`€${(+avg_loss_per_run || 0).toFixed(2)}`}
+          title="Avg Over‐charge per Order"
+          value={`€${(+avg_over_per_order || 0).toFixed(2)}`}
           variant="warning"
         />
       </div>
 
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {Object.keys(loss_per_partner).length > 0 && (
+        {Object.keys(over_per_partner).length > 0 && (
           <BarChartCard
-            title="Loss by Partner"
-            data={Object.entries(loss_per_partner).map(
-              ([partner, loss]) => ({
+            title="Over-charge by Partner"
+            data={Object.entries(over_per_partner).map(
+              ([partner, over]) => ({
                 name: partner,
-                value: typeof loss === 'number' ? loss : 0,
+                value: typeof over === 'number' ? over : 0,
               })
             )}
             xKey="name"
@@ -75,13 +77,13 @@ export default function Analytics() {
           />
         )}
 
-        {Object.keys(loss_per_country).length > 0 && (
+        {Object.keys(over_per_country).length > 0 && (
           <BarChartCard
-            title="Loss by Country"
-            data={Object.entries(loss_per_country).map(
-              ([country, loss]) => ({
+            title="Over-charge by Country"
+            data={Object.entries(over_per_country).map(
+              ([country, over]) => ({
                 name: country,
-                value: typeof loss === 'number' ? loss : 0,
+                value: typeof over === 'number' ? over : 0,
               })
             )}
             xKey="name"
