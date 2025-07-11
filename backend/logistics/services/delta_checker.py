@@ -72,19 +72,22 @@ class DeltaChecker:
             return False, False, None
 
     def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
+        # 1. compute
         df_merged, raw_delta_sum, raw_parsed_flag = compute_fn()
         if df_merged is None:
             return False, False, None
 
+        # 2. normalize
         delta_sum   = float(raw_delta_sum)
         parsed_flag = bool(raw_parsed_flag)
         delta_ok    = delta_sum <= float(delta_threshold)
 
-        if "Delta" in df_merged.columns:
-            df_merged["Delta"] = df_merged["Delta"].astype(float)
-        if "Delta_sum" in df_merged.columns:
-            df_merged["Delta_sum"] = df_merged["Delta_sum"].astype(float)
+        # 3. cast types
+        for col in ("Delta", "Delta_sum"):
+            if col in df_merged.columns:
+                df_merged[col] = df_merged[col].astype(float)
 
+        # 4. add to df_list for any downstream logic
         if not df_merged.empty:
             df_merged["partner"] = partner
             df_list.append(df_merged)
@@ -97,35 +100,61 @@ class DeltaChecker:
             }])
             df_list.append(summary)
 
-        run = InvoiceRun.objects.create(
-            partner   = partner,
-            delta_sum = delta_sum,
-            parsed_ok = parsed_flag,
-            num_rows  = len(df_merged),
-        )
- 
-        key_actual = f"price_{partner}"
-        lines = []
-        for rec in df_merged.to_dict(orient="records"):
-            line_data = {
-                "run":                   run,
-                "order_creation_date":   rec["order_creation_date"],
-                "order_id":              rec["Order ID"],
-                "weight":                rec["weight"],
-                "route":                 rec["buyer_country-seller_country"],
-                "category_lvl_1_and_2":  rec["cat_level_1_and_2"],
-                "category_lvl_2_and_3":  rec["cat_level_2_and_3"],
-                "price_expected":        rec["price"],
-                "delta":                 rec["Delta"],
-                "delta_sum":             rec["Delta_sum"],
-                "invoice_date":          rec["Invoice date"],
-                "invoice_number":        rec["Invoice number"],
-                key_actual:             rec.get(key_actual),
-            }
-            lines.append(InvoiceLine(**line_data))
+        # pick the invoice_number (all rows share the same)
+        invoice_number = None
+        if not df_merged.empty:
+            invoice_number = df_merged["Invoice number"].iloc[0]
 
-        InvoiceLine.objects.bulk_create(lines)
- 
+        with transaction.atomic():
+            if invoice_number:
+                run, created = InvoiceRun.objects.get_or_create(
+                    partner        = partner,
+                    invoice_number = invoice_number,
+                    defaults={
+                        "delta_sum": delta_sum,
+                        "parsed_ok": parsed_flag,
+                        "num_rows":  len(df_merged),
+                    }
+                )
+                if not created:
+                    # update existing
+                    run.delta_sum = delta_sum
+                    run.parsed_ok = parsed_flag
+                    run.num_rows  = len(df_merged)
+                    run.save()
+                    # remove its old lines
+                    InvoiceLine.objects.filter(run=run).delete()
+            else:
+                # fallback if no invoice_number present
+                run = InvoiceRun.objects.create(
+                    partner   = partner,
+                    delta_sum = delta_sum,
+                    parsed_ok = parsed_flag,
+                    num_rows  = len(df_merged),
+                )
+
+            # build new lines
+            key_actual = f"price_{partner}"
+            lines = []
+            for rec in df_merged.to_dict(orient="records"):
+                lines.append(InvoiceLine(
+                    run                   = run,
+                    order_creation_date   = rec["order_creation_date"],
+                    order_id              = rec["Order ID"],
+                    weight                = rec["weight"],
+                    route                 = rec["buyer_country-seller_country"],
+                    category_lvl_1_and_2  = rec["cat_level_1_and_2"],
+                    category_lvl_2_and_3  = rec["cat_level_2_and_3"],
+                    price_expected        = rec["price"],
+                    delta                 = rec["Delta"],
+                    delta_sum             = rec["Delta_sum"],
+                    invoice_date          = rec["Invoice date"],
+                    invoice_number        = rec["Invoice number"],
+                    **{ key_actual: rec.get(key_actual) }
+                ))
+            InvoiceLine.objects.bulk_create(lines)
+
+        # 5. optional Google Sheets export
         try:
             sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
             print(f"✅ Exported to Google Sheets: {sheet_url}")
