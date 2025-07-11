@@ -53,8 +53,7 @@ export default function Analytics() {
             <span className="flex items-center">
               Avg Δ per Run
               <InfoTooltip text="
-                Formula: AVG(delta_sum) over all InvoiceRun records.
-                i.e. (Σ delta_sum) / count(runs)
+                Formula: AVG(Δ_sum) over all InvoiceRun records, i.e. (Σ Δ_sum) / count(runs)
               " />
             </span>
           }
@@ -65,8 +64,7 @@ export default function Analytics() {
             <span className="flex items-center">
               Avg Overcharge per Order
               <InfoTooltip text="
-                Formula: AVG(delta) over all lines where delta>0.
-                i.e. (Σ delta where delta>0) / count(lines where delta>0)
+                Formula: AVG(Δ) over all lines where Δ>0, i.e. (Σ Δ where Δ>0) / count(lines where Δ>0)
               " />
             </span>
           }
@@ -81,8 +79,7 @@ export default function Analytics() {
           <h2 className="text-xl font-semibold flex items-center">
             Over-charge by Partner
             <InfoTooltip text="
-              Formula: For each partner P,
-                Σ(delta where delta>0 and run.partner=P)
+              Formula: For each partner P, i.e. Σ (Δ where Δ>0 and partner=P)
             " />
           </h2>
           <BarChartCard
@@ -98,9 +95,7 @@ export default function Analytics() {
           <h2 className="text-xl font-semibold flex items-center">
             Over-charge by Country
             <InfoTooltip text="
-              Formula: Group lines by buyer_country,
-                Σ(delta where delta>0 and route starts with country)
-            " />
+              Formula: Group lines by buyer_country C, i.e. Σ (Δ where Δ>0 and route start with C)" />
           </h2>
           <BarChartCard
             data={Object.entries(over_per_country)
@@ -111,33 +106,12 @@ export default function Analytics() {
           />
         </div>
       </div>
-
-      {/* Monthly Over-Charge Trend */}
-      <div>
-        <h2 className="text-xl font-semibold flex items-center">
-          Monthly Over-Charge Trend
-          <InfoTooltip text="
-            Formula: For each month M and partner P,
-              Σ(delta where delta>0 and invoice_date in M and run.partner=P)
-          " />
-        </h2>
-        <LineChartCard
-          title=""
-          data={trend_data}
-          xKey="month"
-          yKeys={partners_list}
-          yFormatter={v => `€${v.toFixed(2)}`}
-        />
-      </div>
-
       {/* Top 5 Lossy Routes */}
       <div>
         <h2 className="text-xl font-semibold flex items-center">
           Top 5 Lossy Routes (Avg per Order)
           <InfoTooltip text="
-            Formula per route R:
-              avg_over = (Σ delta where delta>0 and route=R) 
-                         / count(lines where delta>0 and route=R)
+            Formula: For each route R the avg_over, i.e. (Σ Δ where Δ>0 and route=R) / count(lines where Δ>0 and route=R)
           " />
         </h2>
         <BarChartCard
@@ -152,14 +126,32 @@ export default function Analytics() {
           yFormatter={v => `€${v.toFixed(2)}`}
         />
       </div>
+      
+      {/* Monthly Over-Charge Trend */}
+      <div>
+        <h2 className="text-xl font-semibold flex items-center">
+          Monthly Over-Charge Trend
+          <InfoTooltip text="
+            Formula: For each month M and partner P, i.e. Σ(Δ where Δ>0 and invoice_date in M and partner=P)
+          " />
+        </h2>
+        <LineChartCard
+          title=""
+          data={trend_data}
+          xKey="month"
+          yKeys={partners_list}
+          yFormatter={v => `€${v.toFixed(2)}`}
+        />
+      </div>
+
+      
 
       {/* Heatmap: Category × Weight */}
       <div>
         <h2 className="text-xl font-semibold flex items-center">
           Over-Charge by Category & Weight
           <InfoTooltip text="
-            Formula matrix cell [C, W]:
-              Σ(delta where delta>0 and category=C and weight=W)
+            Formula: Category and weight class matrix [C, W], i.e. Σ(Δ where Δ>0 and category=C and weight=W)
           " />
         </h2>
         <HeatmapCard
