@@ -62,6 +62,18 @@ class SwdevriesDeltaCalculator(BaseDeltaCalculator):
         if not filtered_df.empty:
             print(f"The following rows have {partner_value} price higher than our price\n", filtered_df)
 
-        return df_merged[
-            ["Order ID", "buyer_country-seller_country", "weight", "price", "price_swdevries", "Delta", "Delta_sum"]
-        ], delta_sum, flag
+        cols = [
+            "order_creation_date",
+            "Order ID",
+            "weight",
+            "buyer_country-seller_country",
+            "cat_level_1_and_2",
+            "cat_level_2_and_3",
+            "price",
+            "price_swdevries",
+            "Delta",
+            "Delta_sum",
+            "Invoice date",
+            "Invoice number"
+        ]
+        return df_merged[cols], delta_sum, flag
