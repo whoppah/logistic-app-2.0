@@ -1,4 +1,4 @@
-#backend/logistics/models.py
+# backend/logistics/models.py
 from django.db import models
 
 PARTNER_CHOICES = [
@@ -14,31 +14,35 @@ PARTNER_CHOICES = [
 
 class InvoiceRun(models.Model):
     """
-    Represents one execution of the delta pipeline for a single partner.
+    Represents one execution of the delta pipeline for a single partner/invoice.
     """
-    timestamp = models.DateTimeField(auto_now_add=True)
-    partner   = models.CharField(max_length=50, choices=PARTNER_CHOICES)
-    delta_sum = models.FloatField(help_text="Sum of all Delta values for this run")
-    parsed_ok = models.BooleanField(help_text="True if parsing succeeded")
-    num_rows  = models.IntegerField(help_text="Number of invoice lines processed")
+    timestamp      = models.DateTimeField(auto_now_add=True)
+    partner        = models.CharField(max_length=50, choices=PARTNER_CHOICES)
+    invoice_number = models.CharField(max_length=100, db_index=True)
+    delta_sum      = models.FloatField(help_text="Sum of all Delta values for this run")
+    parsed_ok      = models.BooleanField(help_text="True if parsing succeeded")
+    num_rows       = models.IntegerField(help_text="Number of invoice lines processed")
 
     class Meta:
         ordering = ["-timestamp"]
+        unique_together = ("partner", "invoice_number")
+        verbose_name = "Invoice Run"
+        verbose_name_plural = "Invoice Runs"
 
     def __str__(self):
-        return f"{self.timestamp:%Y-%m-%d %H:%M} | {self.partner} | Δ={self.delta_sum}"
+        return f"{self.invoice_number} | {self.partner} | Δ={self.delta_sum}"
 
 
 class InvoiceLine(models.Model):
     """
     One row of the delta comparison, linked to an InvoiceRun.
-    Defines a separate 'price_<partner>' field for each partner.
+    Each partner has its own price_<partner> field.
     """
     run = models.ForeignKey(
         InvoiceRun,
         related_name="lines",
         on_delete=models.CASCADE,
-        help_text="Parent InvoiceRun"
+        help_text="Parent InvoiceRun",
     )
 
     order_creation_date      = models.DateTimeField(help_text="Order creation timestamp")
@@ -48,45 +52,30 @@ class InvoiceLine(models.Model):
     category_lvl_1_and_2     = models.CharField(max_length=100)
     category_lvl_2_and_3     = models.CharField(max_length=100)
 
-    price_expected           = models.DecimalField(
+    price_expected = models.DecimalField(
         "price",
-        max_digits=12, decimal_places=2,
-        help_text="Expected price from internal CMS"
+        max_digits=12,
+        decimal_places=2,
+        help_text="Expected price from internal CMS",
     )
 
-    price_brenger            = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
+    price_brenger      = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price_libero       = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price_swdevries    = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price_transpoksi   = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price_wuunder      = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price_magic_movers = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    price_tadde        = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    delta     = models.DecimalField(
+        "Delta", max_digits=12, decimal_places=2, help_text="Actual minus expected"
     )
-    price_libero             = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
-    )
-    price_swdevries          = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
-    )
-    price_transpoksi         = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
-    )
-    price_wuunder            = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
-    )
-    price_magic_movers       = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
-    )
-    price_tadde              = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
+    delta_sum = models.DecimalField(
+        "Delta_sum", max_digits=14, decimal_places=2, help_text="Total delta for parent run"
     )
 
-    delta                    = models.DecimalField(
-        "Delta", max_digits=12, decimal_places=2,
-        help_text="Actual minus expected"
-    )
-    delta_sum                = models.DecimalField(
-        "Delta_sum", max_digits=14, decimal_places=2,
-        help_text="Total delta for parent run"
-    )
-
-    invoice_date             = models.DateField("Invoice date")
-    invoice_number           = models.CharField(max_length=100, db_index=True)
+    invoice_date   = models.DateField("Invoice date")
+    invoice_number = models.CharField(max_length=100, db_index=True)
 
     class Meta:
         ordering = ["-run__timestamp", "order_creation_date"]
@@ -94,6 +83,8 @@ class InvoiceLine(models.Model):
             models.Index(fields=["order_id"]),
             models.Index(fields=["invoice_number"]),
         ]
+        verbose_name = "Invoice Line"
+        verbose_name_plural = "Invoice Lines"
 
     def __str__(self):
         return f"{self.order_creation_date:%Y-%m-%d} | {self.order_id} | Δ={self.delta:+.2f}"
