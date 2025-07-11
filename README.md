@@ -29,12 +29,12 @@ A full-stack logistics dashboard:
 
 ## Features
 
-- **Invoice Parsing** for multiple courier partners (Brenger, Libero, Sw De Vries, Wuunder…)  
+- **Invoice Parsing** for multiple courier partners (Brenger, Libero, Sw De Vries, Wuunder, Transpoksi (to be implemented), MagicMovers (to be implemented), Tadde)  
 - **Delta Calculation** with customizable threshold  
 - **Asynchronous Pipeline**: load → evaluate → export via Celery  
-- **Slack Bot**: auto-reacts to invoice posts and threads in a channel  
-- **Google Sheets** export with conditional formatting  
-- **Dashboard UI**: upload invoices, view delta table, pricing lookup, Slack thread browser & analytics  
+- **Slack Bot**: auto-reacts to invoice posts and threads in the private channel 'invoices-logistics'
+- **Google Sheets** export with conditional formatting based on Delta>Threshold (~ 20 $)
+- **Dashboard UI**: upload invoices and view delta table in 'Invoice Dashboard', pricing lookup in 'Pricing', Slack thread browser (not yet connected with the main dashboard) & 'Analytics'
 
 ## Tech Stack
 
