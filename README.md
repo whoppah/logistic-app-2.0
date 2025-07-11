@@ -1,4 +1,4 @@
-# logistic-app-2.0
+# Logistic-app-2.0
 
 A Django + Django REST Framework backend with Celery workers and Redis for processing and comparing shipping invoices against internal order data. Generates Google Sheets exports and Slack notifications for out‐of‐threshold deltas.
 
