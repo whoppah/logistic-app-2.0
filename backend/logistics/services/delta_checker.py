@@ -1,5 +1,6 @@
 # backend/logistics/services/delta_checker.py
 import pandas as pd
+from typing import Optional,Tuple
 from django.conf import settings
 from logistics.parsers.registry import parser_registry
 from logistics.services.spreadsheet_exporter import SpreadsheetExporter
@@ -21,9 +22,9 @@ class DeltaChecker:
         partner: str,
         df_list: list,
         invoice_bytes: bytes,
-        pdf_bytes: bytes | None = None,
+        pdf_bytes: Optional[bytes] = None,
         delta_threshold: float = 20.0
-    ) -> tuple[bool, bool, pd.DataFrame | None]:
+    ) -> Tuple[bool, bool, Optional[pd.DataFrame]]:
         """
         Compute delta for the given partner using in‐memory file bytes.
 
