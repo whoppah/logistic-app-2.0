@@ -112,22 +112,13 @@ class TaskResultView(APIView):
                             status=status.HTTP_202_ACCEPTED)
 
         return Response(res.result or {}, status=status.HTTP_200_OK)
+
 class AnalyticsView(APIView):
-    """
-    Returns:
-      - total runs processed
-      - average delta per run
-      - top partner by run count
-      - average loss per order
-      - total loss per partner
-      - total loss per buyer country
-    """
     def get(self, request):
         try:
-            # 1) Overall runs
             runs = InvoiceRun.objects.all()
-            total_runs = runs.count()
-            avg_delta_run = runs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
+            total_runs        = runs.count()
+            avg_delta_per_run = runs.aggregate(avg=Avg("delta_sum"))["avg"] or 0.0
 
             top = (
                 runs.values("partner")
@@ -135,51 +126,44 @@ class AnalyticsView(APIView):
                     .order_by("-cnt")
                     .first()
             )
-            top_partner = top["partner"] if top else None
+            top_partner = top["partner"] if top else ""
 
-            # 2) Loss per order (InvoiceLine-level average of negative deltas)
-            lines = InvoiceLine.objects.all()
-            loss_lines = lines.filter(delta__lt=0).annotate(
-                loss=ExpressionWrapper(-F("delta"), output_field=FloatField())
+            # 1️⃣ Over‐charge per order (delta > 0)
+            pos_lines = InvoiceLine.objects.filter(delta__gt=0).annotate(
+                over=ExpressionWrapper(F("delta"), output_field=FloatField())
             )
-            # average loss per order
-            avg_loss_per_order = loss_lines.aggregate(avg=Avg("loss"))["avg"] or 0.0
+            avg_over_per_order = pos_lines.aggregate(avg=Avg("over"))["avg"] or 0.0
 
-            # 3) Loss per partner
-            # Need to join InvoiceLine → InvoiceRun to get partner
-            lp = (
-                loss_lines
+            # 2️⃣ Over‐charge by partner
+            pp = (
+                pos_lines
                 .values("run__partner")
-                .annotate(total_loss=Sum("loss"))
-                .order_by("-total_loss")
+                .annotate(total_over=Sum("over"))
+                .order_by("-total_over")
             )
-            loss_per_partner = {r["run__partner"]: r["total_loss"] for r in lp}
+            over_per_partner = {r["run__partner"]: r["total_over"] for r in pp}
 
-            # 4) Loss per buyer country
+            # 3️⃣ Over‐charge by buyer country
             country_acc = defaultdict(float)
-            for route, loss in loss_lines.values_list("route", "loss"):
-                buyer_country = route.split("-",1)[0] if route and "-" in route else route or "Unknown"
-                country_acc[buyer_country] += loss
-            # sort descending
-            loss_per_country = dict(
-                sorted(country_acc.items(), key=lambda x: x[1], reverse=True)
-            )
+            for route, over in pos_lines.values_list("route", "over"):
+                buyer = route.split("-", 1)[0] if route and "-" in route else route or "Unknown"
+                country_acc[buyer] += over
+            over_per_country = dict(sorted(country_acc.items(), key=lambda x: x[1], reverse=True))
 
             return Response({
-                "total_runs":         total_runs,
-                "avg_delta_per_run":  round(avg_delta_run, 2),
-                "top_partner":        top_partner,
-                "avg_loss_per_order": round(avg_loss_per_order, 2),
-                "loss_per_partner":   {k: float(v) for k,v in loss_per_partner.items()},
-                "loss_per_country":   loss_per_country,
+                "total_runs":           total_runs,
+                "avg_delta_per_run":    round(avg_delta_per_run, 2),
+                "top_partner":          top_partner,
+                "avg_over_per_order":   round(avg_over_per_order, 2),
+                "over_per_partner":     {k: float(v) for k, v in over_per_partner.items()},
+                "over_per_country":     over_per_country,
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.exception("AnalyticsView failed")
-            return Response({
-                "error": "Analytics calculation failed",
-                "details": str(e),
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": "Analytics failed", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class SlackMessagesView(APIView):
     """
