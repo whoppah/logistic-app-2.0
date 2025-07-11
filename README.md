@@ -55,8 +55,8 @@ A Django + Django REST Framework backend with Celery workers and Redis for proce
 ### 1. Clone Repo
 
 ```bash
-git clone https://github.com/your-org/logistics-delta-checker.git
-cd logistics-delta-checker
+git clone https://github.com/whoppah/logistic-app-2.0.git
+cd logistic-app-2.0
 ````
 
 ### 2. Backend Setup
