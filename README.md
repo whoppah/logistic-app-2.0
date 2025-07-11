@@ -1,6 +1,9 @@
 # Logistic-app-2.0
 
-A Django + Django REST Framework backend with Celery workers and Redis for processing and comparing shipping invoices against internal order data. Generates Google Sheets exports and Slack notifications for out‐of‐threshold deltas.
+A full-stack logistics dashboard:
+
+- **Backend**: Django + DRF, Celery workers & Redis, PostgreSQL (via SQLAlchemy), Slack & Google Sheets integrations  
+- **Frontend**: React + Vite + Tailwind CSS, with dynamic file upload, polling of Celery tasks, pricing lookups, Slack thread browser & analytics charts  
 
 ## Table of Contents
 
@@ -13,6 +16,7 @@ A Django + Django REST Framework backend with Celery workers and Redis for proce
 - [Configuration](#configuration)  
   - [Environment Variables](#environment-variables)  
   - [Django Settings](#django-settings)  
+  - [Vite & Tailwind](#vite--tailwind)  
   - [Celery & Redis](#celery--redis)  
 - [Running Locally](#running-locally)  
   - [Via Docker Compose](#via-docker-compose)  
@@ -21,26 +25,28 @@ A Django + Django REST Framework backend with Celery workers and Redis for proce
 - [Slack Integration](#slack-integration)  
 - [Google Sheets Export](#google-sheets-export)  
 - [Deployment](#deployment)  
-
+---
 
 ## Features
 
-- **Invoice Parsing** for multiple courier partners (Brenger, Libero, Sw De Vries, Wuunder)  
-- **Delta Calculation**: flagging shipments where invoice > expected price  
-- **Celery Workers** for background processing (pipeline: load → evaluate → export)  
-- **Slack Bot**: automatically reacts to invoice posts in a channel  
-- **Google Sheets** export via service account, with conditional formatting  
+- **Invoice Parsing** for multiple courier partners (Brenger, Libero, Sw De Vries, Wuunder…)  
+- **Delta Calculation** with customizable threshold  
+- **Asynchronous Pipeline**: load → evaluate → export via Celery  
+- **Slack Bot**: auto-reacts to invoice posts and threads in a channel  
+- **Google Sheets** export with conditional formatting  
+- **Dashboard UI**: upload invoices, view delta table, pricing lookup, Slack thread browser & analytics  
 
 ## Tech Stack
 
-- **Python 3.12**, **Django 4.2**, **Django REST Framework**  
-- **Celery** for asynchronous tasks  
-- **Redis** as broker & result backend  
-- **PostgreSQL** (via SQLAlchemy for external DB access)  
-- **Docker** / **Docker Compose** for containerization  
-- **Gunicorn** production WSGI server  
-- **Slack SDK** for notifications  
-- **gspread** for Google Sheets integration  
+- **Backend**  
+  - Python 3.12, Django 4.2, Django REST Framework  
+  - Celery, Redis, PostgreSQL (SQLAlchemy), Gunicorn  
+  - Slack SDK, gspread (Google Sheets API)  
+- **Frontend**  
+  - React 18, Vite, Tailwind CSS  
+  - Axios, React Router, Recharts, Lucide icons  
+
+---
 
 ## Getting Started
 
@@ -56,41 +62,61 @@ cd logistic-app-2.0
 ```bash
 cd backend
 cp .env.example .env
-# Edit .env to add real secrets (DATABASE_URL, EXTERNAL_DB_*, REDIS_URL, SECRET_KEY, SLACK_*, GOOGLE_SERVICE_ACCOUNT_FILE, etc.)
+# Edit .env with your secrets: DATABASE_URL, EXTERNAL_DB_*, REDIS_URL, SECRET_KEY, SLACK_BOT_TOKEN, SLACK_CHANNEL_ID, GOOGLE_SERVICE_ACCOUNT_FILE, etc.
 docker build -t logistics-backend .
 ```
 
 ### 3. Frontend Setup
 
-> *Coming soon…* (Your React/Vue/Next.js frontend lives in `/frontend`.)
+```bash
+cd frontend
+cp .env.example .env   # see Environment Variables below
+npm install
+npm run dev
+```
+
+---
 
 ## Configuration
 
 ### Environment Variables
 
-Copy `backend/.env.example` to `.env` and set:
+#### Backend (`backend/.env`)
 
-| Variable                          | Description                                    |
-| --------------------------------- | ---------------------------------------------- |
-| `SECRET_KEY`                      | Django secret key                              |
-| `DEBUG`                           | `True` for dev, `False` for prod               |
-| `DATABASE_URL`                    | Primary DB URL (for Django)                    |
-| `EXTERNAL_DB_NAME`, `_USER`, etc. | Credentials for external orders database       |
-| `REDIS_URL`                       | e.g. `redis://localhost:6379/0`                |
-| `SLACK_BOT_TOKEN`                 | xoxb-… bot token                               |
-| `SLACK_CHANNEL_ID`                | C123… channel where invoices are posted        |
-| `GOOGLE_SERVICE_ACCOUNT_FILE`     | Path to JSON credentials for Google Sheets API |
+| Variable                                                   | Description                                      |
+| ---------------------------------------------------------- | ------------------------------------------------ |
+| `SECRET_KEY`                                               | Django secret key                                |
+| `DEBUG`                                                    | `True` for dev, `False` for prod                 |
+| `DATABASE_URL`                                             | e.g. `postgres://user:pass@host:5432/dbname`     |
+| `EXTERNAL_DB_NAME`, `_USER`, `_PASSWORD`, `_HOST`, `_PORT` | External orders DB credentials                   |
+| `REDIS_URL`                                                | e.g. `redis://localhost:6379/0`                  |
+| `SLACK_BOT_TOKEN`                                          | xoxb-…                                           |
+| `SLACK_CHANNEL_ID`                                         | C123…                                            |
+| `GOOGLE_SERVICE_ACCOUNT_FILE`                              | Path to your service-account JSON for Sheets API |
+
+#### Frontend (`frontend/.env`)
+
+```env
+VITE_API_URL=http://localhost:8000
+```
 
 ### Django Settings
 
-* Configured in `backend/config/settings.py`
-* CORS origin set to your frontend URL
+* `backend/config/settings.py` reads from your `.env`
+* CORS is configured to allow your frontend origin
+
+### Vite & Tailwind
+
+* **`vite.config.js`** proxies `/api` to your Django server
+* **`tailwind.config.js`** extends colors, fonts & includes forms/typography/aspect-ratio plugins
+* Global styles in `src/index.css` apply your design system
 
 ### Celery & Redis
 
-* Broker & backend both point at `REDIS_URL`
-* Workers launched via `entrypoint.sh worker`
-* Beat scheduler via `entrypoint.sh beat`
+* Broker & result backend both use `REDIS_URL`
+* Tasks launched via `./entrypoint.sh worker` and `./entrypoint.sh beat`
+
+---
 
 ## Running Locally
 
@@ -106,10 +132,8 @@ services:
     command: ./entrypoint.sh web
     ports:
       - "8000:8000"
-    environment:
-      - DEBUG=True
-      - REDIS_URL=redis://redis:6379/0
-      # other env vars…
+    env_file:
+      - backend/.env
     volumes:
       - ./backend:/app
     depends_on:
@@ -117,17 +141,29 @@ services:
   worker:
     build: ./backend
     command: ./entrypoint.sh worker
-    environment: *backend_env
+    env_file:
+      - backend/.env
     depends_on:
       - backend
       - redis
   beat:
     build: ./backend
     command: ./entrypoint.sh beat
-    environment: *backend_env
+    env_file:
+      - backend/.env
     depends_on:
       - backend
       - redis
+  frontend:
+    image: node:18
+    working_dir: /app/frontend
+    volumes:
+      - ./frontend:/app/frontend
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    env_file:
+      - frontend/.env
 ```
 
 ```bash
@@ -136,42 +172,60 @@ docker-compose up --build
 
 ### Manually
 
-1. Create & activate a Python venv
-2. `pip install -r requirements.txt`
-3. `python manage.py migrate && python manage.py collectstatic --noinput`
-4. In one terminal: `./entrypoint.sh web`
-5. In another: `./entrypoint.sh worker`
+1. **Backend**
+
+   ```bash
+   cd backend
+   python -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   python manage.py migrate
+   python manage.py collectstatic --noinput
+   ./entrypoint.sh web
+   ./entrypoint.sh worker   # in another terminal
+   ./entrypoint.sh beat     # optional
+   ```
+2. **Frontend**
+
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+---
 
 ## API Reference
 
-All endpoints are prefixed with `/logistics/`:
+All endpoints under `/logistics/` (or `/api/logistics/` if you remap in Vite):
 
-| Path                 | Method | Description                        |
-| -------------------- | ------ | ---------------------------------- |
-| `/upload/`           | POST   | Upload invoice file(s)             |
-| `/check-delta/`      | POST   | Kick off delta pipeline            |
-| `/task-status/`      | GET    | Poll for Celery task status        |
-| `/task-result/`      | GET    | Retrieve pipeline result           |
-| `/analytics/`        | GET    | Summary stats over recent runs     |
-| `/pricing/metadata/` | GET    | Get pricing‐list file metadata     |
-| `/pricing/`          | POST   | Lookup pricing data in DB          |
-| `/slack/messages/`   | GET    | List recent Slack channel messages |
-| `/slack/threads/`    | GET    | Fetch a thread by timestamp        |
-| `/slack/react/`      | POST   | Add/remove reaction on a message   |
+| Path                 | Method | Description                         |
+| -------------------- | ------ | ----------------------------------- |
+| `/upload/`           | POST   | Upload invoice file(s)              |
+| `/check-delta/`      | POST   | Start delta pipeline (202 → celery) |
+| `/task-status/`      | GET    | Poll Celery task status             |
+| `/task-result/`      | GET    | Retrieve pipeline result            |
+| `/analytics/`        | GET    | Dashboard usage & delta trends      |
+| `/pricing/metadata/` | GET    | Get available routes & categories   |
+| `/pricing/`          | GET    | Lookup partner pricing by route/cat |
+| `/slack/messages/`   | GET    | Fetch recent Slack messages         |
+| `/slack/threads/`    | GET    | Fetch replies for a thread          |
+| `/slack/react/`      | POST   | Add/remove reaction on a message    |
+
+---
 
 ## Slack Integration
 
-* Posts in the configured channel with “Partner: brenger/libero/…”
-* Bot auto-reacts ✔️ or ❌ based on delta check
-* Downloads attachments and triggers Celery pipeline
+* Listens for messages with `Partner: <key>` and attached invoice files
+* Downloads files, enqueues Celery pipeline, reacts ✔️ or 🟥 based on delta
 
 ## Google Sheets Export
 
-* Each partner has its own worksheet: `Sheet_brenger`, `Sheet_libero`, etc.
-* New rows appended with headers on first run
-* Positive deltas are highlighted in yellow
+* Each partner gets its own worksheet (e.g. `Sheet_brenger`)
+* Appends new rows, highlights positive Δ in yellow
+* Shared to your service-account’s configured email
+
+---
 
 ## Deployment
 
-We deploy via Railway 
-
+We deploy via Railway.
