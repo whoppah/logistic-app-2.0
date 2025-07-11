@@ -1,4 +1,4 @@
-#backend/logistics/services/delta_checker.py
+# backend/logistics/services/delta_checker.py
 import pandas as pd
 from django.conf import settings
 from logistics.parsers.registry import parser_registry
@@ -8,6 +8,7 @@ from logistics.delta.brenger import BrengerDeltaCalculator
 from logistics.delta.wuunder import WuunderDeltaCalculator
 from logistics.delta.libero import LiberoDeltaCalculator
 from logistics.delta.swdevries import SwdevriesDeltaCalculator
+from logistics.models import InvoiceRun, InvoiceLine
 
 
 class DeltaChecker:
@@ -41,7 +42,7 @@ class DeltaChecker:
 
             parser = parser_cls()
 
-            # Parse invoice bytes
+            # Parse invoice bytes and select appropriate calculator
             if partner == "libero":
                 if pdf_bytes is None:
                     raise ValueError("Libero requires both invoice & PDF bytes")
@@ -70,38 +71,60 @@ class DeltaChecker:
             return False, False, None
 
     def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
-        # Run the partner-specific compute()
         df_merged, raw_delta_sum, raw_parsed_flag = compute_fn()
-
-        # If compute() failed
         if df_merged is None:
             return False, False, None
 
-        # Cast to native Python types
         delta_sum   = float(raw_delta_sum)
         parsed_flag = bool(raw_parsed_flag)
         delta_ok    = delta_sum <= float(delta_threshold)
 
-        # Ensure DataFrame columns are native types
         if "Delta" in df_merged.columns:
             df_merged["Delta"] = df_merged["Delta"].astype(float)
         if "Delta_sum" in df_merged.columns:
             df_merged["Delta_sum"] = df_merged["Delta_sum"].astype(float)
 
-        # Append to list for further aggregation or export
         if not df_merged.empty:
             df_merged["partner"] = partner
             df_list.append(df_merged)
         elif delta_sum == 0 and parsed_flag:
             summary = pd.DataFrame([{
-                "Partner":     partner,
-                "Delta sum":   delta_sum,
-                "Message":     "All prices match perfectly",
-                "Type":        "summary"
+                "Partner":   partner,
+                "Delta sum": delta_sum,
+                "Message":   "All prices match perfectly",
+                "Type":      "summary"
             }])
             df_list.append(summary)
 
-        # Export to Google Sheets (best-effort)
+        run = InvoiceRun.objects.create(
+            partner   = partner,
+            delta_sum = delta_sum,
+            parsed_ok = parsed_flag,
+            num_rows  = len(df_merged),
+        )
+ 
+        key_actual = f"price_{partner}"
+        lines = []
+        for rec in df_merged.to_dict(orient="records"):
+            line_data = {
+                "run":                   run,
+                "order_creation_date":   rec["order_creation_date"],
+                "order_id":              rec["Order ID"],
+                "weight":                rec["weight"],
+                "route":                 rec["buyer_country-seller_country"],
+                "category_lvl_1_and_2":  rec["cat_level_1_and_2"],
+                "category_lvl_2_and_3":  rec["cat_level_2_and_3"],
+                "price_expected":        rec["price"],
+                "delta":                 rec["Delta"],
+                "delta_sum":             rec["Delta_sum"],
+                "invoice_date":          rec["Invoice date"],
+                "invoice_number":        rec["Invoice number"],
+                key_actual:             rec.get(key_actual),
+            }
+            lines.append(InvoiceLine(**line_data))
+
+        InvoiceLine.objects.bulk_create(lines)
+ 
         try:
             sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
             print(f"✅ Exported to Google Sheets: {sheet_url}")
