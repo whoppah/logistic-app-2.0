@@ -72,22 +72,23 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
 
         df_merged["Delta_sum"] = delta_sum
         df_merged["Partner"] = "libero_logistics"
+         
+        cols = [
+            "order_creation_date",
+            "Order ID",
+            "weight",
+            "buyer_country-seller_country",
+            "cat_level_1_and_2",
+            "cat_level_2_and_3",
+            "price",
+            "price_libero_logistics",
+            "Delta",
+            "Delta_sum",
+            "Invoice date",
+            "Invoice number"
+        ]
+        return df_merged[cols], delta_sum, flag
 
-        return (
-            df_merged[
-                [
-                    "Order ID",
-                    "buyer_country-seller_country",
-                    "weight",
-                    "price",
-                    "price_libero_logistics",
-                    "Delta",
-                    "Delta_sum",
-                ]
-            ],
-            delta_sum,
-            flag,
-        )
 
     def _get_germany_prices(self, df):
         """Compute fallback prices for DE/NL postal codes from a dedicated JSON."""
