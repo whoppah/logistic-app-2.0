@@ -1,9 +1,10 @@
 // src/pages/Analytics.jsx
 import { useEffect, useState } from 'react'
 import StatCard from '../components/StatCard'
-import { BarChartCard } from '../components/BarChartCard'
-import { LineChartCard } from '../components/LineChartCard'
-import { HeatmapCard }   from '../components/HeatmapCard'
+import { BarChartCard }   from '../components/BarChartCard'
+import { LineChartCard }  from '../components/LineChartCard'
+import { HeatmapCard }    from '../components/HeatmapCard'
+import InfoTooltip        from '../components/InfoTooltip'
 
 export default function Analytics() {
   const API = import.meta.env.VITE_API_URL
@@ -32,8 +33,6 @@ export default function Analytics() {
     avg_over_per_order,
     over_per_partner,
     over_per_country,
-
-    // new:
     trend_data,
     partners_list,
     top_routes,
@@ -42,66 +41,135 @@ export default function Analytics() {
 
   return (
     <div className="space-y-8">
-      {/* ── Top‐level KPIs ───────────────────────────────────────────── */}
+
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Total Runs"      value={total_runs} />
         <StatCard
-          title="Avg Δ per Run"
+          title="Total Runs"
+          value={total_runs}
+        />
+        <StatCard
+          title={
+            <span className="flex items-center">
+              Avg Δ per Run
+              <InfoTooltip text="
+                Formula: AVG(delta_sum) over all InvoiceRun records.
+                i.e. (Σ delta_sum) / count(runs)
+              " />
+            </span>
+          }
           value={`€${(+avg_delta_per_run).toFixed(2)}`}
         />
         <StatCard
-          title="Avg Overcharge per Order"
+          title={
+            <span className="flex items-center">
+              Avg Overcharge per Order
+              <InfoTooltip text="
+                Formula: AVG(delta) over all lines where delta>0.
+                i.e. (Σ delta where delta>0) / count(lines where delta>0)
+              " />
+            </span>
+          }
           value={`€${(+avg_over_per_order).toFixed(2)}`}
           variant="warning"
         />
       </div>
 
-      {/* ── Loss by Partner & Country ───────────────────────── */}
+      {/* Over-charge by Partner & Country */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BarChartCard
-          title="Over-charge by Partner"
-          data={Object.entries(over_per_partner).map(([p, v])=>({ name:p, value:v }))}
-          xKey="name"
-          yKey="value"
-        />
-        <BarChartCard
-          title="Over-charge by Country"
-          data={Object.entries(over_per_country).map(([c, v])=>({ name:c, value:v }))}
-          xKey="name"
-          yKey="value"
+        <div>
+          <h2 className="text-xl font-semibold flex items-center">
+            Over-charge by Partner
+            <InfoTooltip text="
+              Formula: For each partner P,
+                Σ(delta where delta>0 and run.partner=P)
+            " />
+          </h2>
+          <BarChartCard
+            data={Object.entries(over_per_partner)
+              .map(([p, v]) => ({ name: p, value: v }))}
+            xKey="name"
+            yKey="value"
+            yFormatter={v => `€${v.toFixed(2)}`}
+          />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold flex items-center">
+            Over-charge by Country
+            <InfoTooltip text="
+              Formula: Group lines by buyer_country,
+                Σ(delta where delta>0 and route starts with country)
+            " />
+          </h2>
+          <BarChartCard
+            data={Object.entries(over_per_country)
+              .map(([c, v]) => ({ name: c, value: v }))}
+            xKey="name"
+            yKey="value"
+            yFormatter={v => `€${v.toFixed(2)}`}
+          />
+        </div>
+      </div>
+
+      {/* Monthly Over-Charge Trend */}
+      <div>
+        <h2 className="text-xl font-semibold flex items-center">
+          Monthly Over-Charge Trend
+          <InfoTooltip text="
+            Formula: For each month M and partner P,
+              Σ(delta where delta>0 and invoice_date in M and run.partner=P)
+          " />
+        </h2>
+        <LineChartCard
+          title=""
+          data={trend_data}
+          xKey="month"
+          yKeys={partners_list}
+          yFormatter={v => `€${v.toFixed(2)}`}
         />
       </div>
-      
-      {/* ── New Widget 1: Time‐Series Trend ────────────────────────────── */}
-      <LineChartCard
-        title="Monthly Over-Charge Trend"
-        data={trend_data}
-        xKey="month"
-        yKeys={partners_list}
-      />
 
-      {/* ── New Widget 2: Top 5 Lossy Routes ──────────────────────────── */}
-      <BarChartCard
-         title="Top 5 Lossy Routes (Avg Overcharge per Order)"
-         data={top_routes.map(r => ({
-           name: r.route,
-           value: r.avg_over,
-           total: r.total_over,
-           orders: r.orders,
-         }))}
-         xKey="name"
-         yKey="value"
-         yFormatter={v => `€${v.toFixed(2)}`}
-       />
+      {/* Top 5 Lossy Routes */}
+      <div>
+        <h2 className="text-xl font-semibold flex items-center">
+          Top 5 Lossy Routes (Avg per Order)
+          <InfoTooltip text="
+            Formula per route R:
+              avg_over = (Σ delta where delta>0 and route=R) 
+                         / count(lines where delta>0 and route=R)
+          " />
+        </h2>
+        <BarChartCard
+          data={top_routes.map(r => ({
+            name:  r.route,
+            value: r.avg_over,  
+            total: r.total_over,
+            orders: r.orders,
+          }))}
+          xKey="name"
+          yKey="value"
+          yFormatter={v => `€${v.toFixed(2)}`}
+        />
+      </div>
 
-      {/* ── New Widget 3: Category × Weight Heatmap ───────────────────── */}
-      <HeatmapCard
-        title="Over-Charge by Category & Weight"
-        data={category_weight}
-        xKey="category"
-        yKey="weight"
-        valueKey="over"
-      />
+      {/* Heatmap: Category × Weight */}
+      <div>
+        <h2 className="text-xl font-semibold flex items-center">
+          Over-Charge by Category & Weight
+          <InfoTooltip text="
+            Formula matrix cell [C, W]:
+              Σ(delta where delta>0 and category=C and weight=W)
+          " />
+        </h2>
+        <HeatmapCard
+          title=""
+          data={category_weight}
+          xKey="category"
+          yKey="weight"
+          valueKey="over"
+        />
+      </div>
     </div>
   )
 }
