@@ -114,7 +114,7 @@ VITE_API_URL=http://localhost:8000
 ### Celery & Redis
 
 * Broker & result backend both use `REDIS_URL`
-* Tasks launched via `./entrypoint.sh worker` and `./entrypoint.sh beat`
+* Tasks launched via `./entrypoint.sh worker` 
 
 ---
 
@@ -182,7 +182,6 @@ docker-compose up --build
    python manage.py collectstatic --noinput
    ./entrypoint.sh web
    ./entrypoint.sh worker   # in another terminal
-   ./entrypoint.sh beat     # optional
    ```
 2. **Frontend**
 
