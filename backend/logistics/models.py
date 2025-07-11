@@ -5,10 +5,12 @@ from django.db import models
 class InvoiceRun(models.Model):
     PARTNER_CHOICES = [
         ("brenger", "Brenger"),
-        ("wuunder", "Wuunder"),
         ("libero", "Libero"),
         ("swdevries", "Sw De Vries"),
-        # add others if needed
+        ("transpoksi", "Transpoksi"),
+        ("wuunder", "Wuunder"),
+        ("magic_movers","Magic Movers"),
+        ("tadde", "Tadde")
     ]
 
     timestamp    = models.DateTimeField(auto_now_add=True)
