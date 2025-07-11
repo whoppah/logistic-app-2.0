@@ -1,156 +1,214 @@
 # logistic-app-2.0
 
-In the `backend/logistics` are the core backend modules responsible for **parsing**, **computing Delta**, and **processing logistics invoices** with order data pulled from the CMS database. It computes price discrepancies (Δ - Delta) between what partners billed and what should have been charged based on internal pricing logic (in JSON format 'backend/logistics/pricing_data').
+A Django + Django REST Framework backend with Celery workers and Redis for processing and comparing shipping invoices against internal order data. Generates Google Sheets exports and Slack notifications for out‐of‐threshold deltas.
 
----
+## Table of Contents
 
-## Purpose
+- [Features](#features)  
+- [Tech Stack](#tech-stack)  
+- [Prerequisites](#prerequisites)  
+- [Getting Started](#getting-started)  
+  - [1. Clone Repo](#1-clone-repo)  
+  - [2. Backend Setup](#2-backend-setup)  
+  - [3. Frontend Setup](#3-frontend-setup)  
+- [Configuration](#configuration)  
+  - [Environment Variables](#environment-variables)  
+  - [Django Settings](#django-settings)  
+  - [Celery & Redis](#celery--redis)  
+- [Running Locally](#running-locally)  
+  - [Via Docker Compose](#via-docker-compose)  
+  - [Manually](#manually)  
+- [API Reference](#api-reference)  
+- [Slack Integration](#slack-integration)  
+- [Google Sheets Export](#google-sheets-export)  
+- [Deployment](#deployment)  
+- [Contributing](#contributing)  
+- [License](#license)
 
-- **Process invoices from logistics partners**
-- **Extract and parse data** from PDFs and Excel sheets
-- **Query CMS (PostgreSQL)** for matching order info
-- **Apply pricing models** (JSON-based or logic-driven)
-- **Compute Δ (Delta)** per item
-- **Export results** to Google Sheets
-- **React to Slack uploads** with ✅ or 🟥
+## Features
 
----
+- **Invoice Parsing** for multiple courier partners (Brenger, Libero, Sw De Vries, Wuunder)  
+- **Delta Calculation**: flagging shipments where invoice > expected price  
+- **Celery Workers** for background processing (pipeline: load → evaluate → export)  
+- **Slack Bot**: automatically reacts to invoice posts in a channel  
+- **Google Sheets** export via service account, with conditional formatting  
 
-## Structure Overview
+## Tech Stack
 
-The module is functionally divided into:
+- **Python 3.12**, **Django 4.2**, **Django REST Framework**  
+- **Celery** for asynchronous tasks  
+- **Redis** as broker & result backend  
+- **PostgreSQL** (via SQLAlchemy for external DB access)  
+- **Docker** / **Docker Compose** for containerization  
+- **Gunicorn** production WSGI server  
+- **Slack SDK** for notifications  
+- **gspread** for Google Sheets integration  
 
-| Layer                     | Description                                                              |
-|--------------------------|--------------------------------------------------------------------------|
-| Parsers                  | Read & format raw invoice files (PDF/XLSX)                               |
-| Delta computation        | Calculate the delta using CMS data and expected pricing                 |
-| CMS data access          | Extract live order data using SQLAlchemy and retry logic                 |
-| Google Sheets export     | Format and upload delta results to Google Sheets                        |
-| Slack integration        | Monitor, download, process, and react to invoice uploads                |
-| Django backend           | API                                                                     |
-| React .jsx app           | Frontend                                                                | 
-| Task queue (Celery)      | Async file processing for dashboard and Slack-based ingestion           |
+## Prerequisites
 
----
+- Docker & Docker Compose (or Python 3.12 + Redis + Postgres locally)  
+- Google service account JSON (for Sheets API)  
+- Slack Bot Token & Channel ID  
 
-## Backend structure
+## Getting Started
 
-### 1. Invoice Parsing Functions
-
-Each logistics partner has its own parsing logic tailored to their file formats.
-
-| Function | Input Type | Description |
-|---------|------------|-------------|
-| `brenger_read_pdf()` | PDF from Redis | Extracts Brenger invoice line items and totals |
-| `magic_movers_read_xlsx()` | Excel from Redis | Parses Magic Movers Excel and classifies items |
-| `wuunder_read_pdf()` | PDF | Handles multi-line, nested Wuunder invoice items |
-| `libero_logistics_read_xlsx()` | Excel + PDF | Reads Excel and gets metadata from PDF |
-| `swdevries_read_xlsx()` | Excel | Reads Swdevries invoice with dynamic headers |
-| `transpoksi_read_pdf()` | PDF | Simple PDF reader with totals verification |
-
-All parsers:
-- Load files from Redis
-- Parse invoice metadata (dates, totals)
-- Clean and normalize data
-- Format into `pandas.DataFrame`
-
----
-
-### 2. Delta Calculation
-
-Each partner has specific delta calculation rules. Deltas represent overcharges or mismatches between billed and expected pricing.
-
-| Function | Description |
-|----------|-------------|
-| `compute_delta_brenger()` | Joins CMS + invoice by ID and uses pricing JSON |
-| `compute_delta_magic_movers()` | Uses internal logic (transport, surcharges, packing) |
-| `compute_delta_wuunder()` | Compares to `shipping_excl_vat` in CMS |
-| `compute_delta_other_partners()` | Generic matcher using JSON rules, time-aware |
-| `germany_price_libero_logistics()` | Special pricing override for German routes |
-
-Delta summary is appended to result:
-- ✅ If `sum(Δ) <= threshold`
-- 🟥 Otherwise
-
----
-
-### 3. CMS Order Extraction
-
-| Function | Description |
-|----------|-------------|
-| `get_df_from_query_db(partner)` | Builds a dynamic PostgreSQL query using SQLAlchemy |
-| `execute_query_with_retries()` | Retry logic for transient DB errors |
-
-The query returns:
-- Order metadata
-- Product category
-- Dimensions, weight, etc.
-- External courier info
-- Shipping cost from CMS
-
----
-
-### 4. Export to Google Sheets
-
-| Function | Description |
-|----------|-------------|
-| `export_to_spreadsheet(df, partner)` | Creates or appends to a Google Sheet and highlights Δ rows |
-
-- Authenticated via Service Account key
-- Each partner has a tab
-- Yellow highlight on positive delta rows
-
----
-
-### 5. Slack Automation
-
-| Function | Description |
-|----------|-------------|
-| `download_file(file_id)` | Downloads file from Slack to Redis |
-| `check_condition_and_react()` | Processes recent Slack messages and reacts ✅ / 🟥 |
-| `check_delta_in_dataframe()` | Core handler for calling invoice + delta logic |
-| `extract_partner(msg)` | Regex matcher for “Partner: X” from Slack text |
-
----
-
-### 6. Flask & Celery Routes
-
-| Route | Description |
-|-------|-------------|
-| `/upload` | Upload files via web UI |
-| `/run-process` | Trigger Slack scan manually |
-| `/launch-dashboard` | Cache results in Redis and launch dashboard |
-| `/api/dashboard/<id>` | Returns JSON of dashboard view |
-| `/check-task-status` | Polled by frontend to show progress |
-| `/show-data` | HTML rendering of results |
-
----
-## Dashboard (React Frontend)
-
-The dashboard is a single-page React app served statically by Flask.
-
-- Shows per-partner Delta summaries (e.g., total overcharges)
-- Interactive bar chart (built with Recharts)
-- Route: `/dash/:dashboardId` (data is pulled from Redis)
-
-To use:
-- Upload invoice(s)
-- Visit `http://localhost:5000/launch-dashboard`
-- You'll be redirected to a live dashboard view for that dataset
-
-## Dev Setup
+### 1. Clone Repo
 
 ```bash
-# Install Python deps
-pip install -r requirements.txt
+git clone https://github.com/your-org/logistics-delta-checker.git
+cd logistics-delta-checker
+````
 
-# Set env variables
-cp logistics.env.example logistics.env
-# Edit secrets accordingly
+### 2. Backend Setup
 
-# Start services
-redis-server
-celery -A facturen_logistiek worker --loglevel=info
-python app.py
+```bash
+cd backend
+cp .env.example .env
+# Edit .env to add real secrets (DATABASE_URL, EXTERNAL_DB_*, REDIS_URL, SECRET_KEY, SLACK_*, GOOGLE_SERVICE_ACCOUNT_FILE, etc.)
+docker build -t logistics-backend .
+```
 
+### 3. Frontend Setup
 
+> *Coming soon…* (Your React/Vue/Next.js frontend lives in `/frontend`.)
+
+## Configuration
+
+### Environment Variables
+
+Copy `backend/.env.example` to `.env` and set:
+
+| Variable                          | Description                                    |
+| --------------------------------- | ---------------------------------------------- |
+| `SECRET_KEY`                      | Django secret key                              |
+| `DEBUG`                           | `True` for dev, `False` for prod               |
+| `DATABASE_URL`                    | Primary DB URL (for Django)                    |
+| `EXTERNAL_DB_NAME`, `_USER`, etc. | Credentials for external orders database       |
+| `REDIS_URL`                       | e.g. `redis://localhost:6379/0`                |
+| `SLACK_BOT_TOKEN`                 | xoxb-… bot token                               |
+| `SLACK_CHANNEL_ID`                | C123… channel where invoices are posted        |
+| `GOOGLE_SERVICE_ACCOUNT_FILE`     | Path to JSON credentials for Google Sheets API |
+
+### Django Settings
+
+* Configured in `backend/config/settings.py`
+* CORS origin set to your frontend URL
+
+### Celery & Redis
+
+* Broker & backend both point at `REDIS_URL`
+* Workers launched via `entrypoint.sh worker`
+* Beat scheduler via `entrypoint.sh beat`
+
+## Running Locally
+
+### Via Docker Compose
+
+```yaml
+version: "3.8"
+services:
+  redis:
+    image: redis:7
+  backend:
+    build: ./backend
+    command: ./entrypoint.sh web
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - REDIS_URL=redis://redis:6379/0
+      # other env vars…
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+  worker:
+    build: ./backend
+    command: ./entrypoint.sh worker
+    environment: *backend_env
+    depends_on:
+      - backend
+      - redis
+  beat:
+    build: ./backend
+    command: ./entrypoint.sh beat
+    environment: *backend_env
+    depends_on:
+      - backend
+      - redis
+```
+
+```bash
+docker-compose up --build
+```
+
+### Manually
+
+1. Create & activate a Python venv
+2. `pip install -r requirements.txt`
+3. `python manage.py migrate && python manage.py collectstatic --noinput`
+4. In one terminal: `./entrypoint.sh web`
+5. In another: `./entrypoint.sh worker`
+6. (Optional) In another: `./entrypoint.sh beat`
+
+## API Reference
+
+All endpoints are prefixed with `/logistics/`:
+
+| Path                 | Method | Description                        |
+| -------------------- | ------ | ---------------------------------- |
+| `/upload/`           | POST   | Upload invoice file(s)             |
+| `/check-delta/`      | POST   | Kick off delta pipeline            |
+| `/task-status/`      | GET    | Poll for Celery task status        |
+| `/task-result/`      | GET    | Retrieve pipeline result           |
+| `/analytics/`        | GET    | Summary stats over recent runs     |
+| `/pricing/metadata/` | GET    | Get pricing‐list file metadata     |
+| `/pricing/`          | POST   | Lookup pricing data in DB          |
+| `/slack/messages/`   | GET    | List recent Slack channel messages |
+| `/slack/threads/`    | GET    | Fetch a thread by timestamp        |
+| `/slack/react/`      | POST   | Add/remove reaction on a message   |
+
+## Slack Integration
+
+* Posts in the configured channel with “Partner: brenger/libero/…”
+* Bot auto-reacts ✔️ or ❌ based on delta check
+* Downloads attachments and triggers Celery pipeline
+
+## Google Sheets Export
+
+* Each partner has its own worksheet: `Sheet_brenger`, `Sheet_libero`, etc.
+* New rows appended with headers on first run
+* Positive deltas are highlighted in yellow
+
+## Deployment
+
+We deploy via Railway (or Heroku/DigitalOcean):
+
+* **Procfile**:
+
+  ```
+  web:    ./entrypoint.sh web
+  worker: ./entrypoint.sh worker
+  beat:   ./entrypoint.sh beat
+  ```
+* Set environment vars in your deployment dashboard.
+* Attach a managed Redis add-on.
+
+## Contributing
+
+1. Fork & create feature branch
+2. Run tests & lint (`pytest`, `flake8`)
+3. Submit a PR against `main`
+
+## License
+
+MIT © Your Company Name
+
+```
+---  
+
+**Next steps:**  
+- Verify your `.env` keys & secrets.  
+- Add the frontend README once your UI is in place.  
+- Adjust any partner-specific parser notes or pricing-data paths as needed.
+```
