@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import json
 import logging
+import requests
 from collections import defaultdict
 from django.conf import settings
 from celery import chain
@@ -15,6 +16,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.db.models import Avg, Sum, Count, F, FloatField, ExpressionWrapper, Value, Func
 from django.db.models.functions import Cast, TruncMonth
+from django.http import HttpResponse
 
 from logistics.models import InvoiceRun, InvoiceLine
 
@@ -403,6 +405,25 @@ class SlackReactView(APIView):
                 {"error": "Internal error adding reaction"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class SlackFileProxyView(APIView):
+    """
+    GET /logistics/slack/download/?url=<slack_file_url>
+    Proxies the private Slack file through the backend.
+    """
+    def get(self, request):
+        url = request.query_params.get("url")
+        if not url:
+            return Response({"error": "Missing url"}, status=status.HTTP_400_BAD_REQUEST)
+
+        slack = SlackService()   
+        headers = {"Authorization": f"Bearer {slack.token}"}
+        resp = requests.get(url, headers=headers)
+        if resp.status_code != 200:
+            return Response({"error": "Failed to download from Slack"}, status=status.HTTP_502_BAD_GATEWAY)
+
+        content_type = resp.headers.get("Content-Type", "application/octet-stream")
+        return HttpResponse(resp.content, content_type=content_type)
 class PricingMetadataView(APIView):
     """
     GET /logistics/pricing/metadata/?partner=brenger
