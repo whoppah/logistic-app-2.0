@@ -10,13 +10,13 @@ import {
 
 // Map free‐form Slack message text to partner key and desired file type
 const PARTNER_MAP = [
-  { label: /brenger/i,         key: "brenger",      want: "pdf"  },
-  { label: /libero/i,          key: "libero",       want: "both" },
-  { label: /sw\s*de\s*vries/i, key: "swdevries",    want: "xls"  },
-  { label: /transpoksi/i,      key: "transpoksi",   want: "pdf"  },
-  { label: /wuunder/i,         key: "wuunder",      want: "pdf"  },
-  { label: /magic\s*movers/i,  key: "magic_movers", want: "xls"  },
-  { label: /tadde/i,           key: "tadde",        want: "both" },
+  { label: /Brenger/i,         key: "brenger",      want: "pdf"  },
+  { label: /Libero/i,          key: "libero",       want: "both" },
+  { label: /Sw\s*de\s*vries/i, key: "swdevries",    want: "xls"  },
+  { label: /Transpoksi/i,      key: "transpoksi",   want: "pdf"  },
+  { label: /Wuunder/i,         key: "wuunder",      want: "pdf"  },
+  { label: /Magic\s*movers/i,  key: "magic_movers", want: "xls"  },
+  { label: /Tadde/i,           key: "tadde",        want: "both" },
 ];
 
 export default function MessageItem({
