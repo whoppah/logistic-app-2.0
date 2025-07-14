@@ -9,7 +9,6 @@ import Table          from "../components/Table";
 
 export default function Dashboard() {
   const API_BASE     = import.meta.env.VITE_API_URL;
-  const SLACK_TOKEN  = import.meta.env.VITE_SLACK_TOKEN;
   const { state }    = useLocation();
   const initPartner  = state?.partner;
   const initFileUrls = state?.fileUrls || [];
@@ -28,27 +27,26 @@ export default function Dashboard() {
   // Cleanup polling on unmount
   useEffect(() => () => clearInterval(pollRef.current), []);
 
-  // If we arrived via Slack “Analyze”, prefetch files and auto-submit
+  // If arrived via Slack “Analyze” button, download & auto-submit
   useEffect(() => {
     if (initPartner && initFileUrls.length) {
       (async () => {
         try {
+          // 1) proxy-download each Slack file through your backend
           const downloaded = await Promise.all(
-            initFileUrls.map(async (url) => {
-              // proxy the Slack download to avoid CORS
-              const proxyUrl = `${API_BASE}/logistics/slack/download/?url=${encodeURIComponent(url)}`;
-              const resp = await fetch(proxyUrl, {
-                headers: { Authorization: `Bearer ${SLACK_TOKEN}` },
-              });
+            initFileUrls.map(async (url, idx) => {
+              const proxyUrl = `${API_BASE}/logistics/slack/download/?file_url=${encodeURIComponent(url)}`;
+              const resp = await fetch(proxyUrl);
               if (!resp.ok) throw new Error("Download failed");
               const blob = await resp.blob();
               const ext  = blob.type === "application/pdf" ? ".pdf" : ".xlsx";
-              return new File([blob], `${initPartner}${ext}`, { type: blob.type });
+              return new File([blob], `${initPartner}_${idx}${ext}`, { type: blob.type });
             })
           );
+
+          // 2) stash them into state and kick off the normal pipeline
           setFiles(downloaded);
           setPartner(initPartner);
-          // give React a tick to update state, then submit
           setTimeout(() => handleSubmit(downloaded, initPartner), 100);
         } catch (e) {
           console.error("Prefetch error:", e);
@@ -56,7 +54,7 @@ export default function Dashboard() {
         }
       })();
     }
-  }, []); // run only once
+  }, []); // run once
 
   const onFiles = useCallback((fileList) => setFiles(Array.from(fileList)), []);
 
@@ -74,7 +72,7 @@ export default function Dashboard() {
             { params: { task_id: id } }
           );
           applyResult(result);
-        } else if (["FAILURE", "REVOKED"].includes(status.state)) {
+        } else if (["FAILURE","REVOKED"].includes(status.state)) {
           clearInterval(pollRef.current);
           setError("Server failed to process the task.");
           setLoading(false);
@@ -107,7 +105,7 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  // Allow overriding files+partner when auto-submitting
+  // Accept optional overrideFiles & overridePartner for auto-submit
   const handleSubmit = async (overrideFiles, overridePartner) => {
     const useFiles   = overrideFiles   || files;
     const usePartner = overridePartner || partner;
@@ -120,7 +118,7 @@ export default function Dashboard() {
     setError("");
     setLoading(true);
 
-    // Partner-specific validations (same as before) …
+    // Partner-specific checks (as before)…
     const names = useFiles.map((f) => f.name.toLowerCase());
     const hasPdf = names.some((n) => n.endsWith(".pdf"));
     const hasXls = names.some((n) => /\.(xls|xlsx)$/.test(n));
@@ -140,16 +138,16 @@ export default function Dashboard() {
       setLoading(false);
       return;
     }
-    // … other partners …
+    // …and so on for the rest…
 
     try {
-      // 1️⃣ Upload
+      // 1️⃣ Upload to Redis
       const form = new FormData();
       useFiles.forEach((f) => form.append("file", f));
       const up = await axios.post(`${API_BASE}/logistics/upload/`, form);
       const { redis_key, redis_key_pdf } = up.data;
 
-      // 2️⃣ Kick off delta
+      // 2️⃣ Launch Delta chain
       const payload = {
         partner:         usePartner,
         redis_key:       usePartner === "libero" ? redis_key : redis_key || redis_key_pdf,
@@ -180,8 +178,9 @@ export default function Dashboard() {
   return (
     <div className="ml-64 p-8 space-y-8">
       <h1 className="text-4xl font-bold">Invoice Dashboard</h1>
+
       <PartnerSelector partner={partner} setPartner={setPartner} />
-      <FileUploader onFiles={onFiles} files={files} />
+      <FileUploader   onFiles={onFiles} files={files} />
       <button
         onClick={() => handleSubmit()}
         disabled={loading}
@@ -197,11 +196,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-semibold">Delta Summary</h2>
-              <p
-                className={`mt-1 text-lg ${
-                  deltaOk ? "text-green-600" : "text-red-600"
-                }`}
-              >
+              <p className={`mt-1 text-lg ${deltaOk ? "text-green-600" : "text-red-600"}`}>
                 Total Delta: {deltaSum.toFixed(2)} {deltaOk ? "✅" : "🟥"}
               </p>
             </div>
