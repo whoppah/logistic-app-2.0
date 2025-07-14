@@ -1,6 +1,6 @@
 #backend/logistics/urls.py
 from django.urls import path
-from .views import CheckDeltaView, UploadInvoiceFile, TaskStatusView, TaskResultView, AnalyticsView, SlackMessagesView, SlackThreadView, SlackReactView, PricingMetadataView, PricingLookupView, SlackFileProxyView, SlackFileDownloadView
+from .views import CheckDeltaView, UploadInvoiceFile, TaskStatusView, TaskResultView, AnalyticsView, SlackMessagesView, SlackThreadView, SlackReactView, PricingMetadataView, PricingLookupView, SlackFileDownloadView
 
 app_name = "logistics"
 
