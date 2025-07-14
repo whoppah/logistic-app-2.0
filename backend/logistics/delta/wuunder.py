@@ -20,7 +20,7 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
         df_merged['Delta_sum'] =delta_sum
         print("Delta sum is ", delta_sum)
         flag= False if df_merged["shipping_excl_vat"].sum() == 0 else True
-        filtered_df =df_merged.loc[df_merged['Delta']>=0,  ["tracking_id","order_number" ,"buyer_country-seller_country", "weight", "price_wuunder", "shipping_excl_vat", "Delta","Delta_sum"]]
+        filtered_df =df_merged.loc[df_merged['Delta']>=0,  ["tracking_id","Order ID" ,"buyer_country-seller_country", "weight", "price_wuunder", "shipping_excl_vat", "Delta","Delta_sum"]]
         if not filtered_df.empty:
             print("The following rows have wuunder price higher than one expected from shipping_excl_vat \n",filtered_df)
 
