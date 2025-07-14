@@ -15,10 +15,11 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
         df_merged["weight"] = df_merged["weight"].astype(float).round(2)
         df_merged["shipping_excl_vat"] = df_merged["shipping_excl_vat"].astype(float)
         df_merged['Delta'] = df_merged['price_wuunder'] - df_merged['shipping_excl_vat']
-        df_merged.rename(columns={"order_number":"Order ID","invoice_date":"Invoice date","invoice_number":"Invoice number","shipment_date":"order_creation_date"}, inplace=True)
+        df_merged.rename(columns={"order_number":"Order ID","invoice_date":"Invoice date","invoice_number":"Invoice number"}, inplace=True)
         delta_sum = df_merged['Delta'].sum()
         df_merged['Delta_sum'] =delta_sum
         print("Delta sum is ", delta_sum)
+        print("Invoice date is ", df_merged["Invoice date"][-1])
         flag= False if df_merged["shipping_excl_vat"].sum() == 0 else True
         filtered_df =df_merged.loc[df_merged['Delta']>=0,  ["tracking_id","Order ID" ,"buyer_country-seller_country", "weight", "price_wuunder", "shipping_excl_vat", "Delta","Delta_sum"]]
         if not filtered_df.empty:
@@ -35,7 +36,7 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
             "price_wuunder",
             "Delta",
             "Delta_sum",
-            "Invoice date",
+            #"Invoice date",
             "Invoice number"
         ]
         return df_merged[cols], delta_sum, flag
