@@ -1,11 +1,23 @@
-// frontend/src/components/MessageItem.jsx
+//frontend/src/components/MessageItem.jsx
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   UserCircle2,
   MessageSquare,
   FileText,
   FileSpreadsheet,
 } from "lucide-react";
+
+// Map free‐form Slack message text to partner key and desired file type
+const PARTNER_MAP = [
+  { label: /brenger/i,         key: "brenger",      want: "pdf"  },
+  { label: /libero/i,          key: "libero",       want: "both" },
+  { label: /sw\s*de\s*vries/i, key: "swdevries",    want: "xls"  },
+  { label: /transpoksi/i,      key: "transpoksi",   want: "pdf"  },
+  { label: /wuunder/i,         key: "wuunder",      want: "pdf"  },
+  { label: /magic\s*movers/i,  key: "magic_movers", want: "xls"  },
+  { label: /tadde/i,           key: "tadde",        want: "both" },
+];
 
 export default function MessageItem({
   msg,
@@ -14,6 +26,7 @@ export default function MessageItem({
   onOptimisticReact,
   onSendReact,
 }) {
+  const navigate = useNavigate();
   const time = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -22,6 +35,31 @@ export default function MessageItem({
   const handleReact = (name) => {
     onOptimisticReact(msg.ts, name);
     onSendReact(msg.ts, name);
+  };
+
+  // 1️⃣ Detect partner from the message text
+  const match = PARTNER_MAP.find(({ label }) => label.test(msg.text));
+  const partner = match?.key;
+
+  // 2️⃣ Collect all matching file URLs for that partner
+  let fileUrls = [];
+  if (partner) {
+    const want = match.want;
+    for (let f of msg.files || []) {
+      if (
+        (want === "pdf"  && f.mimetype === "application/pdf") ||
+        (want === "xls"  && f.mimetype.includes("spreadsheet")) ||
+        (want === "both" && (f.mimetype === "application/pdf" || f.mimetype.includes("spreadsheet")))
+      ) {
+        fileUrls.push(f.url);
+      }
+    }
+  }
+
+  // 3️⃣ Clicking Analyze navigates to Dashboard with state
+  const handleAnalyze = () => {
+    if (!partner || fileUrls.length === 0) return;
+    navigate("/", { state: { partner, fileUrls } });
   };
 
   return (
@@ -96,6 +134,16 @@ export default function MessageItem({
               </span>
             </button>
           )}
+
+          {/* ➕ Analyze button ➕ */}
+          {partner && fileUrls.length > 0 && (
+            <button
+              onClick={handleAnalyze}
+              className="ml-4 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+            >
+              Analyze
+            </button>
+          )}
         </div>
       </div>
 
@@ -115,5 +163,5 @@ export default function MessageItem({
         </button>
       </div>
     </div>
-  );
+);
 }
