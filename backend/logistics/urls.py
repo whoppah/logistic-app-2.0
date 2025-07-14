@@ -1,6 +1,6 @@
 #backend/logistics/urls.py
 from django.urls import path
-from .views import CheckDeltaView, UploadInvoiceFile, TaskStatusView, TaskResultView, AnalyticsView, SlackMessagesView, SlackThreadView, SlackReactView, PricingMetadataView, PricingLookupView, SlackFileProxyView
+from .views import CheckDeltaView, UploadInvoiceFile, TaskStatusView, TaskResultView, AnalyticsView, SlackMessagesView, SlackThreadView, SlackReactView, PricingMetadataView, PricingLookupView, SlackFileProxyView, SlackFileDownloadView
 
 app_name = "logistics"
 
@@ -15,5 +15,5 @@ urlpatterns = [
     path("slack/react/", SlackReactView.as_view(), name="slack-react"),
     path("pricing/metadata/", PricingMetadataView.as_view()),
     path("pricing/", PricingLookupView.as_view()),
-    path("logistics/slack/download/", SlackFileProxyView.as_view(), name="slack-download"),
+    path("slack/download/", SlackFileDownloadView.as_view(), name="slack-download"),
 ]
