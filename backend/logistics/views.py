@@ -16,7 +16,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from django.db.models import Avg, Sum, Count, F, FloatField, ExpressionWrapper, Value, Func
 from django.db.models.functions import Cast, TruncMonth
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseServerError
 
 from logistics.models import InvoiceRun, InvoiceLine
 
@@ -406,46 +406,34 @@ class SlackReactView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-class SlackFileProxyView(APIView):
-    """
-    GET /logistics/slack/download/?url=<slack_file_url>
-    Proxies the private Slack file through the backend.
-    """
-    def get(self, request):
-        url = request.query_params.get("url")
-        if not url:
-            return Response({"error": "Missing url"}, status=status.HTTP_400_BAD_REQUEST)
-
-        slack = SlackService()   
-        headers = {"Authorization": f"Bearer {slack.token}"}
-        resp = requests.get(url, headers=headers)
-        if resp.status_code != 200:
-            return Response({"error": "Failed to download from Slack"}, status=status.HTTP_502_BAD_GATEWAY)
-
-        content_type = resp.headers.get("Content-Type", "application/octet-stream")
-        return HttpResponse(resp.content, content_type=content_type)
-
 class SlackFileDownloadView(APIView):
     """
-    GET /logistics/slack/download/?file_url={url}
-    Proxies a download from Slack, adding the bot token server-side to avoid CORS & auth issues.
+    Proxy-download a Slack-hosted file for the front end,
+    so we can attach our bot token server-side and avoid CORS issues.
+    GET /logistics/slack/download/?file_url=…
     """
     def get(self, request):
         file_url = request.query_params.get("file_url")
         if not file_url:
-            return Response({"error": "file_url is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponseBadRequest("Missing file_url param")
 
-        headers = {"Authorization": f"Bearer {settings.SLACK_BOT_TOKEN}"}
-        resp = requests.get(file_url, headers=headers, stream=True)
-        if resp.status_code != 200:
-            return Response({"error": "Download failed"}, status=status.HTTP_502_BAD_GATEWAY)
+        headers = {
+            "Authorization": f"Bearer {settings.SLACK_BOT_TOKEN}"
+        }
 
+        try:
+            # stream=True so we don't load entire file into memory at once
+            resp = requests.get(file_url, headers=headers, stream=True, timeout=10)
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            # something went wrong fetching from Slack
+            return HttpResponseServerError(f"Slack download failed: {e}")
+
+        # pass through the content and content-type
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
-        return Response(
-            resp.content,
-            status=200,
-            content_type=content_type
-        )
+        content = resp.raw.read()  # read from the streamed response
+
+        return HttpResponse(content, content_type=content_type)
 
 class PricingMetadataView(APIView):
     """
