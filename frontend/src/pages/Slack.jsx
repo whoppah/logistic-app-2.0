@@ -1,18 +1,21 @@
 // frontend/src/pages/Slack.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import ChannelHeader from "../components/ChannelHeader";
 import MessageList from "../components/MessageList";
 import ThreadSidebar from "../components/ThreadSidebar";
 
 export default function Slack() {
   const API = import.meta.env.VITE_API_URL;
-  const [messages, setMessages] = useState([]);
-  const [selectedThreadTs, setThreadTs] = useState(null);
-  const [threads, setThreads] = useState({});
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // 1️⃣ Load channel messages once on mount
+  const [messages, setMessages]         = useState([]);
+  const [selectedThreadTs, setThreadTs] = useState(null);
+  const [threads, setThreads]           = useState({});
+  const [loading, setLoading]           = useState(true);
+
+  //Load channel messages once on mount
   useEffect(() => {
     (async () => {
       try {
@@ -26,7 +29,7 @@ export default function Slack() {
     })();
   }, [API]);
 
-  // 2️⃣ Open a thread and fetch its replies if needed
+  //Open a thread and fetch its replies if needed
   const openThread = async (ts) => {
     setThreadTs(ts);
     if (!threads[ts]) {
@@ -34,17 +37,14 @@ export default function Slack() {
         const res = await axios.get(`${API}/logistics/slack/threads/`, {
           params: { thread_ts: ts },
         });
-        setThreads((t) => ({
-          ...t,
-          [ts]: res.data.filter((m) => m && m.ts),
-        }));
+        setThreads((t) => ({ ...t, [ts]: res.data.filter((m) => m && m.ts) }));
       } catch (e) {
         console.error("Error fetching Slack thread", e);
       }
     }
   };
 
-  // 3️⃣ Optimistic local reaction update
+  //Reactions
   const optimisticReact = (ts, name) => {
     setMessages((msgs) =>
       msgs.map((m) => {
@@ -57,21 +57,55 @@ export default function Slack() {
           }
           return r;
         });
-        if (!found) {
-          newReactions.push({ name, count: 1, me: true });
-        }
+        if (!found) newReactions.push({ name, count: 1, me: true });
         return { ...m, reactions: newReactions };
       })
     );
   };
-
-  // 4️⃣ Fire off to backend/slack — errors can be ignored here, UI already updated
   const sendReact = async (ts, reaction) => {
     try {
       await axios.post(`${API}/logistics/slack/react/`, { ts, reaction });
     } catch (e) {
       console.error("Error sending reaction", e);
     }
+  };
+
+  // etch thread attachments & navigate to Dashboard
+  const fetchThreadAndAnalyze = async (threadTs, partner) => {
+    // ensure we have the thread loaded
+    let thread = threads[threadTs];
+    if (!thread) {
+      const res = await axios.get(`${API}/logistics/slack/threads/`, {
+        params: { thread_ts: threadTs },
+      });
+      thread = res.data;
+      setThreads((t) => ({ ...t, [threadTs]: thread }));
+    }
+
+    // define mimetypes we want per partner
+    const WANT = {
+      brenger:      ["application/pdf"],
+      libero:       ["application/pdf","spreadsheet"],
+      swdevries:    ["spreadsheet"],
+      transpoksi:   ["application/pdf"],
+      wuunder:      ["application/pdf"],
+      magic_movers: ["spreadsheet"],
+      tadde:        ["application/pdf","spreadsheet"],
+    }[partner] || [];
+
+    // collect all file URLs from any message in the thread
+    const urls = thread
+      .flatMap((m) => m.files || [])
+      .filter((f) => WANT.some((w) => f.mimetype.includes(w)))
+      .map((f) => f.url);
+
+    if (urls.length === 0) {
+      alert("No matching invoice files found in this thread.");
+      return;
+    }
+
+    // navigate to the Dashboard, passing state
+    navigate("/", { state: { partner, fileUrls: urls } });
   };
 
   return (
@@ -91,9 +125,9 @@ export default function Slack() {
             <MessageList
               messages={messages}
               onOpenThread={openThread}
-              // pass both helpers down
               onOptimisticReact={optimisticReact}
               onSendReact={sendReact}
+              fetchThreadAndAnalyze={fetchThreadAndAnalyze}  // ← pass it down
               selectedThreadTs={selectedThreadTs}
             />
           )}
