@@ -25,55 +25,32 @@ export default function MessageItem({
   onOpenThread,
   onOptimisticReact,
   onSendReact,
+  fetchThreadAndAnalyze,  // ← new prop
 }) {
   const navigate = useNavigate();
 
-  // compute the display time first
+  // 1) Compute display time
   const time = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  // 1️⃣ DEBUG LOGS – after we have `time` in scope
-  console.log("🔍 Slack text:", msg.text);
-  
-  // 2️⃣ Try the regex map
+  // 2) Detect partner via regex
   let match = PARTNER_MAP.find(({ label }) => label.test(msg.text));
 
-  // 3️⃣ Fallback to simple `includes` if regex fails
+  // 3) Fallback substring detection
   if (!match) {
     const lower = msg.text.toLowerCase();
-    if (lower.includes("brenger"))      match = PARTNER_MAP.find(m=>m.key==="brenger");
-    else if (lower.includes("libero"))  match = PARTNER_MAP.find(m=>m.key==="libero");
-    else if (lower.includes("sw de vries")) match = PARTNER_MAP.find(m=>m.key==="swdevries");
-    else if (lower.includes("wuunder")) match = PARTNER_MAP.find(m=>m.key==="wuunder");
-    // …and so on
+    if (lower.includes("brenger"))         match = PARTNER_MAP.find(m=>m.key==="brenger");
+    else if (lower.includes("libero"))     match = PARTNER_MAP.find(m=>m.key==="libero");
+    else if (lower.includes("sw de vries"))match = PARTNER_MAP.find(m=>m.key==="swdevries");
+    else if (lower.includes("transpoksi")) match = PARTNER_MAP.find(m=>m.key==="transpoksi");
+    else if (lower.includes("wuunder"))    match = PARTNER_MAP.find(m=>m.key==="wuunder");
+    else if (lower.includes("magic movers")) match = PARTNER_MAP.find(m=>m.key==="magic_movers");
+    else if (lower.includes("tadde"))      match = PARTNER_MAP.find(m=>m.key==="tadde");
   }
 
   const partner = match?.key;
-  console.log("   → detected partner:", partner);
-
-  // 4️⃣ Collect file URLs
-  let fileUrls = [];
-  if (partner) {
-    const want = match.want;
-    for (let f of msg.files || []) {
-      if (
-        (want==="pdf"  && f.mimetype==="application/pdf") ||
-        (want==="xls"  && f.mimetype.includes("spreadsheet")) ||
-        (want==="both" && (f.mimetype==="application/pdf" || f.mimetype.includes("spreadsheet")))
-      ) {
-        fileUrls.push(f.url);
-      }
-    }
-  }
-  console.log("   → matching files:", fileUrls);
-
-  // 5️⃣ Navigate with state on Analyze
-  const handleAnalyze = () => {
-    if (!partner || fileUrls.length === 0) return;
-    navigate("/", { state: { partner, fileUrls } });
-  };
 
   const handleReact = (name) => {
     onOptimisticReact(msg.ts, name);
@@ -153,10 +130,10 @@ export default function MessageItem({
             </button>
           )}
 
-          {/* Analyze button */}
-          {partner && fileUrls.length > 0 && (
+          {/* Always show Analyze if we detected a partner */}
+          {partner && (
             <button
-              onClick={handleAnalyze}
+              onClick={() => fetchThreadAndAnalyze(msg.ts, partner)}
               className="ml-4 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
             >
               Analyze
@@ -165,7 +142,7 @@ export default function MessageItem({
         </div>
       </div>
 
-      {/* hover picker */}
+      {/* hover picker emojis */}
       <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={() => handleReact("white_check_mark")}
@@ -181,5 +158,5 @@ export default function MessageItem({
         </button>
       </div>
     </div>
-  );
+);
 }
