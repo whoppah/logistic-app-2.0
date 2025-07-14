@@ -1,4 +1,4 @@
-//frontend/src/components/MessageItem.jsx
+//src/components/MessageItem.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -8,6 +8,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 
+// Partner‐detection map
 const PARTNER_MAP = [
   { label: /\bbrenger\b/i,         key: "brenger",      want: "pdf"  },
   { label: /\blibero\b/i,          key: "libero",       want: "both" },
@@ -18,30 +19,41 @@ const PARTNER_MAP = [
   { label: /\btadde\b/i,           key: "tadde",        want: "both" },
 ];
 
-export default function MessageItem(props) {
-  const { msg, isSelected, onOpenThread, onOptimisticReact, onSendReact } = props;
+export default function MessageItem({
+  msg,
+  isSelected,
+  onOpenThread,
+  onOptimisticReact,
+  onSendReact,
+}) {
   const navigate = useNavigate();
 
-  // DEBUG: what text are we actually getting?
-  console.log("🔍 Slack text:", msg.text);
+  // compute the display time first
+  const time = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-  // Regex lookup
+  // 1️⃣ DEBUG LOGS – after we have `time` in scope
+  console.log("🔍 Slack text:", msg.text);
+  
+  // 2️⃣ Try the regex map
   let match = PARTNER_MAP.find(({ label }) => label.test(msg.text));
 
-  // Fallback: simple substring if regex failed
+  // 3️⃣ Fallback to simple `includes` if regex fails
   if (!match) {
     const lower = msg.text.toLowerCase();
-    if (lower.includes("brenger"))      match = PARTNER_MAP.find(m => m.key==="brenger");
-    else if (lower.includes("libero"))  match = PARTNER_MAP.find(m => m.key==="libero");
-    else if (lower.includes("sw de vries")) match = PARTNER_MAP.find(m => m.key==="swdevries");
-    else if (lower.includes("wuunder")) match = PARTNER_MAP.find(m => m.key==="wuunder");
-    // …and so on for other partners…
+    if (lower.includes("brenger"))      match = PARTNER_MAP.find(m=>m.key==="brenger");
+    else if (lower.includes("libero"))  match = PARTNER_MAP.find(m=>m.key==="libero");
+    else if (lower.includes("sw de vries")) match = PARTNER_MAP.find(m=>m.key==="swdevries");
+    else if (lower.includes("wuunder")) match = PARTNER_MAP.find(m=>m.key==="wuunder");
+    // …and so on
   }
 
   const partner = match?.key;
   console.log("   → detected partner:", partner);
 
-  //  Collect file URLs (same as before)…
+  // 4️⃣ Collect file URLs
   let fileUrls = [];
   if (partner) {
     const want = match.want;
@@ -57,10 +69,15 @@ export default function MessageItem(props) {
   }
   console.log("   → matching files:", fileUrls);
 
-  // Clicking Analyze navigates to Dashboard with state
+  // 5️⃣ Navigate with state on Analyze
   const handleAnalyze = () => {
     if (!partner || fileUrls.length === 0) return;
     navigate("/", { state: { partner, fileUrls } });
+  };
+
+  const handleReact = (name) => {
+    onOptimisticReact(msg.ts, name);
+    onSendReact(msg.ts, name);
   };
 
   return (
@@ -84,7 +101,7 @@ export default function MessageItem(props) {
         {msg.files?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {msg.files.map((f) => {
-              const isPdf = f.mimetype === "application/pdf";
+              const isPdf  = f.mimetype === "application/pdf";
               const isXlsx = f.mimetype.includes("spreadsheet");
               return (
                 <a
@@ -136,7 +153,7 @@ export default function MessageItem(props) {
             </button>
           )}
 
-          {/* ➕ Analyze button ➕ */}
+          {/* Analyze button */}
           {partner && fileUrls.length > 0 && (
             <button
               onClick={handleAnalyze}
@@ -164,5 +181,5 @@ export default function MessageItem(props) {
         </button>
       </div>
     </div>
-);
+  );
 }
