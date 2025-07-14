@@ -1,27 +1,61 @@
 // frontend/src/pages/Dashboard.jsx
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import axios from "axios";
 
 import PartnerSelector from "../components/PartnerSelector";
-import FileUploader from "../components/FileUploader";
-import Table from "../components/Table";
+import FileUploader   from "../components/FileUploader";
+import Table          from "../components/Table";
 
 export default function Dashboard() {
   const API_BASE = import.meta.env.VITE_API_URL || "";
-  const [partner, setPartner] = useState("brenger");
-  const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [deltaSum, setDeltaSum] = useState(0);
-  const [deltaOk, setDeltaOk] = useState(false);
-  const [sheetUrl, setSheetUrl] = useState("");
-  const [data, setData] = useState([]);
-  const [error, setError] = useState("");
+  const SLACK_TOKEN = import.meta.env.VITE_SLACK_TOKEN;
 
-  const [taskId, setTaskId] = useState(null);
+  // Grab any state pushed by MessageItem’s Analyze button
+  const { state } = useLocation();
+  const initPartner  = state?.partner;
+  const initFileUrls = state?.fileUrls || [];
+
+  const [partner,   setPartner]  = useState(initPartner || "brenger");
+  const [files,     setFiles]    = useState([]);
+  const [loading,   setLoading]  = useState(false);
+  const [deltaSum,  setDeltaSum] = useState(0);
+  const [deltaOk,   setDeltaOk]  = useState(false);
+  const [sheetUrl,  setSheetUrl] = useState("");
+  const [data,      setData]     = useState([]);
+  const [error,     setError]    = useState("");
+
+  const [taskId,    setTaskId]   = useState(null);
   const pollRef = useRef(null);
 
   // clear polling on unmount
   useEffect(() => () => clearInterval(pollRef.current), []);
+
+  // If we arrived here with partner+fileUrls, prefetch & submit
+  useEffect(() => {
+    if (initPartner && initFileUrls.length) {
+      (async () => {
+        try {
+          const fetched = await Promise.all(
+            initFileUrls.map(async (url) => {
+              const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${SLACK_TOKEN}` }
+              });
+              const blob = await res.blob();
+              const ext  = blob.type === "application/pdf" ? ".pdf" : ".xlsx";
+              return new File([blob], `${initPartner}${ext}`, { type: blob.type });
+            })
+          );
+          setFiles(fetched);
+          setPartner(initPartner);
+          // auto-submit after files & partner are set
+          handleSubmit(fetched, initPartner);
+        } catch (e) {
+          console.error("Prefetch error:", e);
+        }
+      })();
+    }
+  }, []); // empty deps → run once
 
   const onFiles = useCallback((fileList) => {
     setFiles(Array.from(fileList));
@@ -77,36 +111,41 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  const handleSubmit = async () => {
-    if (!files.length) {
+  // Accept overrideFiles & overridePartner for auto‐submit case
+  const handleSubmit = async (overrideFiles, overridePartner) => {
+    const useFiles   = overrideFiles   || files;
+    const usePartner = overridePartner || partner;
+
+    if (!useFiles.length) {
       setError("Please select at least one file.");
       return;
     }
+    setPartner(usePartner);
 
-    // partner‐specific file checks
-    const names = files.map((f) => f.name.toLowerCase());
+    // Partner‐specific checks
+    const names = useFiles.map((f) => f.name.toLowerCase());
     const hasPdf = names.some((n) => n.endsWith(".pdf"));
     const hasXls = names.some((n) => n.endsWith(".xls") || n.endsWith(".xlsx"));
 
-    if (partner === "libero") {
+    if (usePartner === "libero") {
       if (!hasPdf || !hasXls) {
         setError("Libero requires at least one PDF and one Excel file.");
         return;
       }
-    } else if (["brenger", "wuunder", "transpoksi"].includes(partner)) {
+    } else if (["brenger", "wuunder", "transpoksi"].includes(usePartner)) {
       if (!hasPdf) {
-        setError(`${partner} requires at least one PDF file.`);
+        setError(`${usePartner} requires at least one PDF file.`);
         return;
       }
-    } else if (["swdevries"].includes(partner)) {
+    } else if (["swdevries"].includes(usePartner)) {
       if (!hasXls) {
-        setError(`${partner} requires at least one Excel file.`);
+        setError(`${usePartner} requires at least one Excel file.`);
         return;
       }
-    } else if (partner === "tadde") {
+    } else if (usePartner === "tadde") {
       setError("Tadde integration is not implemented yet.");
       return;
-    } else if (partner === "magic_movers") {
+    } else if (usePartner === "magic_movers") {
       setError("Magic Movers needs invoices updates to compute the surcharges directly from it.");
       return;
     }
@@ -117,14 +156,14 @@ export default function Dashboard() {
     try {
       // 1️⃣ Upload
       const form = new FormData();
-      files.forEach((f) => form.append("file", f));
+      useFiles.forEach((f) => form.append("file", f));
       const up = await axios.post(`${API_BASE}/logistics/upload/`, form);
       const { redis_key, redis_key_pdf } = up.data;
 
       // 2️⃣ Check‐delta
       const payload = {
-        partner,
-        redis_key: partner === "libero" ? redis_key : redis_key || redis_key_pdf,
+        partner:         usePartner,
+        redis_key:       usePartner === "libero" ? redis_key : redis_key || redis_key_pdf,
         redis_key_pdf,
         delta_threshold: 20,
       };
@@ -159,7 +198,7 @@ export default function Dashboard() {
       <FileUploader onFiles={onFiles} files={files} />
 
       <button
-        onClick={handleSubmit}
+        onClick={() => handleSubmit()}
         disabled={loading}
         className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50"
       >
