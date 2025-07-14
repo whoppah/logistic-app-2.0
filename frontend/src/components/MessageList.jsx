@@ -7,6 +7,7 @@ export default function MessageList({
   onOpenThread,
   onOptimisticReact,
   onSendReact,
+  fetchThreadAndAnalyze,   
   selectedThreadTs,
 }) {
   const byDate = messages.reduce((acc, m) => {
@@ -34,6 +35,7 @@ export default function MessageList({
                   onOpenThread={() => onOpenThread(msg.ts)}
                   onOptimisticReact={onOptimisticReact}
                   onSendReact={onSendReact}
+                  fetchThreadAndAnalyze={fetchThreadAndAnalyze}   
                 />
               ))}
           </div>
