@@ -424,6 +424,29 @@ class SlackFileProxyView(APIView):
 
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
         return HttpResponse(resp.content, content_type=content_type)
+
+class SlackFileDownloadView(APIView):
+    """
+    GET /logistics/slack/download/?file_url={url}
+    Proxies a download from Slack, adding the bot token server-side to avoid CORS & auth issues.
+    """
+    def get(self, request):
+        file_url = request.query_params.get("file_url")
+        if not file_url:
+            return Response({"error": "file_url is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        headers = {"Authorization": f"Bearer {settings.SLACK_BOT_TOKEN}"}
+        resp = requests.get(file_url, headers=headers, stream=True)
+        if resp.status_code != 200:
+            return Response({"error": "Download failed"}, status=status.HTTP_502_BAD_GATEWAY)
+
+        content_type = resp.headers.get("Content-Type", "application/octet-stream")
+        return Response(
+            resp.content,
+            status=200,
+            content_type=content_type
+        )
+
 class PricingMetadataView(APIView):
     """
     GET /logistics/pricing/metadata/?partner=brenger
