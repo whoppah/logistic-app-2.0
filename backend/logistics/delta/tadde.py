@@ -18,7 +18,7 @@ class TaddeDeltaCalculator(BaseDeltaCalculator):
         )
         
         # Load pricing file
-        json_path = os.path.join(settings.PRICING_DATA_PATH, "prijslijst_other_partners.json")
+        json_path = os.path.join(settings.PRICING_DATA_PATH, "prijslijst_tadde.json")
         df_price = pd.read_json(json_path)
         df_price["Weightclass"] = df_price["Weightclass"].astype(float).apply(lambda x: format(x, '.2f'))
 
@@ -37,11 +37,11 @@ class TaddeDeltaCalculator(BaseDeltaCalculator):
                 if price_row["CMS category"] == category_23 and price_row["Weightclass"] == weight:
                     if creation_date < change_price_date:
                         if f"{buyer_seller_country}-OLD" in price_row:
-                            column_key = f"{buyer_seller_country}-OLD-{partner_value}"
+                            column_key = f"{buyer_seller_country}-OLD"
                         else:
-                            column_key = f"{buyer_seller_country}-{partner_value}"
+                            column_key = f"{buyer_seller_country}"
                     else:
-                        column_key = f"{buyer_seller_country}-{partner_value}"
+                        column_key = f"{buyer_seller_country}"
                     matched_price = price_row.get(column_key, matched_price)
                     break
             prices.append(matched_price)
