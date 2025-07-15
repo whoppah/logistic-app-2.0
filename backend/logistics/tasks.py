@@ -4,6 +4,7 @@ import redis
 import pandas as pd
 from celery import shared_task, chain
 from django.conf import settings
+from datetime import datetime
 from logistics.services.delta_checker import DeltaChecker
 
 logger = logging.getLogger(__name__)
