@@ -3,10 +3,12 @@ from .brenger import BrengerParser
 from .swdevries import SwdevriesParser
 from .libero import LiberoParser
 from .wuunder import WuunderParser
+from .tadde import TaddeParser
 
 parser_registry = {
     "brenger": BrengerParser,
     "swdevries": SwdevriesParser,
     "libero": LiberoParser,
     "wuunder": WuunderParser,
+    "tadde" : Tadde,
 }
