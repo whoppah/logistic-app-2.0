@@ -128,8 +128,8 @@ export default function Dashboard() {
       setLoading(false);
       return;
     }
-    if (["swdevries","magic_movers"].inlcudes(usePartner) && !hasXls) {
-      setError("Sw De Vries requires an Excel file.");
+    if (["swdevries","magic_movers"].includes(usePartner) && !hasXls) {
+      setError(`${usePartner} requires an Excel file.`);
       setLoading(false);
       return;
     }
