@@ -24,15 +24,14 @@ export default function Dashboard() {
   const [taskId,    setTaskId]   = useState(null);
   const pollRef = useRef(null);
 
-  // Cleanup polling on unmount
+
   useEffect(() => () => clearInterval(pollRef.current), []);
 
-  // If arrived via Slack “Analyze” button, download & auto-submit
+  
   useEffect(() => {
     if (initPartner && initFileUrls.length) {
       (async () => {
         try {
-          // 1) proxy-download each Slack file through your backend
           const downloaded = await Promise.all(
             initFileUrls.map(async (url, idx) => {
               const proxyUrl = `${API_BASE}/logistics/slack/download/?file_url=${encodeURIComponent(url)}`;
@@ -43,8 +42,6 @@ export default function Dashboard() {
               return new File([blob], `${initPartner}_${idx}${ext}`, { type: blob.type });
             })
           );
-
-          // 2) stash them into state and kick off the normal pipeline
           setFiles(downloaded);
           setPartner(initPartner);
           setTimeout(() => handleSubmit(downloaded, initPartner), 100);
@@ -54,7 +51,7 @@ export default function Dashboard() {
         }
       })();
     }
-  }, []); // run once
+  }, []);  
 
   const onFiles = useCallback((fileList) => setFiles(Array.from(fileList)), []);
 
@@ -105,7 +102,6 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  // Accept optional overrideFiles & overridePartner for auto-submit
   const handleSubmit = async (overrideFiles, overridePartner) => {
     const useFiles   = overrideFiles   || files;
     const usePartner = overridePartner || partner;
@@ -118,7 +114,6 @@ export default function Dashboard() {
     setError("");
     setLoading(true);
 
-    // Partner-specific checks (as before)…
     const names = useFiles.map((f) => f.name.toLowerCase());
     const hasPdf = names.some((n) => n.endsWith(".pdf"));
     const hasXls = names.some((n) => /\.(xls|xlsx)$/.test(n));
@@ -128,26 +123,24 @@ export default function Dashboard() {
       setLoading(false);
       return;
     }
-    if (["brenger","wuunder","transpoksi"].includes(usePartner) && !hasPdf) {
+    if (["brenger","wuunder","tadde","transpoksi"].includes(usePartner) && !hasPdf) {
       setError(`${usePartner} requires a PDF file.`);
       setLoading(false);
       return;
     }
-    if (usePartner === "swdevries" && !hasXls) {
+    if (["swdevries","magic_movers"].inlcudes(usePartner) && !hasXls) {
       setError("Sw De Vries requires an Excel file.");
       setLoading(false);
       return;
     }
-    // …and so on for the rest…
+   
 
     try {
-      // 1️⃣ Upload to Redis
       const form = new FormData();
       useFiles.forEach((f) => form.append("file", f));
       const up = await axios.post(`${API_BASE}/logistics/upload/`, form);
       const { redis_key, redis_key_pdf } = up.data;
 
-      // 2️⃣ Launch Delta chain
       const payload = {
         partner:         usePartner,
         redis_key:       usePartner === "libero" ? redis_key : redis_key || redis_key_pdf,
