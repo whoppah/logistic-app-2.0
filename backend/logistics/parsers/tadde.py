@@ -33,11 +33,13 @@ class TaddeParser(BaseParser):
                 m = re.search(r"Invoice number\s*(F-\d{4}-\d{3})", line)
                 if m:
                     invoice_number = m.group(1)
+                    print(f"[DEBUG] Invoice number {invoice_number}")
             if not invoice_date and "Issue date" in line:
                 m = re.search(r"Issue date\s*(\d{2}-\d{2}-\d{4})", line)
                 if m:
                     invoice_date = datetime.strptime(m.group(1), "%d-%m-%Y").date()
-            if total_value is None and "Total" in line and "excl. VAT" in line and "+" in line:
+                    print(f"[DEBUG] Invoice date {invoice_date}")
+            if total_value is None and "Total" in line and "excl. VAT" in line:
                 m = re.search(r"€\s*([\d\.,]+)", line)
                 if m:
                     raw = m.group(1).replace(".", "").replace(",", ".")
