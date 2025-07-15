@@ -15,7 +15,7 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
         df_merged["weight"] = df_merged["weight"].astype(float).round(2)
         df_merged["shipping_excl_vat"] = df_merged["shipping_excl_vat"].astype(float)
         df_merged['Delta'] = df_merged['price_wuunder'] - df_merged['shipping_excl_vat']
-        df_merged.rename(columns={"order_number":"Order ID","invoice_date":"Invoice date","invoice_number":"Invoice number"}, inplace=True)
+        df_merged.rename(columns={"invoice_date":"Invoice date","invoice_number":"Invoice number"}, inplace=True)
         delta_sum = df_merged['Delta'].sum()
         df_merged['Delta_sum'] =delta_sum
         print("Delta sum is ", delta_sum)
