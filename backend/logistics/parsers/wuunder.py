@@ -96,10 +96,10 @@ class WuunderParser(BaseParser):
  
         i = 0
         while i < len(lines):
-            line = lines[i].strip()
+            line = lines[i].strip().replace("*","")
             print(f"[DEBUG] line:{line}")
             m = re.match(
-                r"^(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(.*?)\s+package\s+(.*?)\s+([\d,]+)$",
+                r"^(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(.*?)\s+package\s+(.*?)\s+(-?[\d,]+)$",                                                                                        
                 line
             )
             if m:
