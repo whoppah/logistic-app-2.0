@@ -63,8 +63,8 @@ class WuunderParser(BaseParser):
             if not invoice_date and "Factuurdatum" in line:
                 m = re.search(r"Factuurdatum[:\s]*(\d{1,2}\s+\w+\s+\d{4})", line, flags=re.IGNORECASE)
                 if m:
+                    print("[DEBUG] Parsed dutch date:", m.group(1))
                     inv_date = translate_month(m.group(1))
-                    print("[DEBUG] Parsed inv date:", inv_date)
                     if inv_date:
                         invoice_date = inv_date
                         print("[DEBUG] Parsed invoice date:", invoice_date)
