@@ -23,6 +23,24 @@ _DUTCH_MONTHS = {
 }
 
 class WuunderParser(BaseParser):
+    def translate_month(self, dutch_date: str) -> date | None:
+            """
+            Turn dutch date into a date.
+            """
+            parts = dutch_date.strip().lower().split()
+            if len(parts) != 3:
+                return None
+            day_str, month_str, year_str = parts
+            try:
+                day   = int(day_str)
+                month = _DUTCH_MONTHS.get(month_str)
+                year  = int(year_str)
+                if month:
+                    return date(year, month, day)
+            except ValueError:
+                pass
+            return None
+        
     def parse(self, file_bytes: bytes) -> pd.DataFrame:
         """
         Parse a Wuunder PDF into a DataFrame of shipment rows, extracting:
@@ -45,24 +63,6 @@ class WuunderParser(BaseParser):
                 text = page.extract_text()
                 if text:
                     lines.extend(text.split("\n"))
- 
-        def translate_month(self, dutch_date: str) -> date | None:
-            """
-            Turn dutch date into a date.
-            """
-            parts = dutch_date.strip().lower().split()
-            if len(parts) != 3:
-                return None
-            day_str, month_str, year_str = parts
-            try:
-                day   = int(day_str)
-                month = _DUTCH_MONTHS.get(month_str)
-                year  = int(year_str)
-                if month:
-                    return date(year, month, day)
-            except ValueError:
-                pass
-            return None
 
 
         invoice_number = None
@@ -90,7 +90,7 @@ class WuunderParser(BaseParser):
             if not invoice_date and "Factuurdatum" in line:
                 m = re.search(r"Factuurdatum[:\s]*(\d{1,2}\s+\w+\s+\d{4})", line, flags=re.IGNORECASE)
                 if m:
-                    inv_date = translate_month(m.group(1))
+                    inv_date = self.translate_month(m.group(1))
                     if inv_date:
                         invoice_date = inv_date
                         print("[DEBUG] Parsed invoice date:", invoice_date)
