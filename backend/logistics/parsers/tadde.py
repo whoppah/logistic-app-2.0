@@ -6,98 +6,94 @@ import pdfplumber
 from datetime import datetime, date
 from .base_parser import BaseParser
 
-
-
 class TaddeParser(BaseParser):
-    
-        
     def parse(self, file_bytes: bytes) -> pd.DataFrame:
         """
         Parse a Tadde PDF into a DataFrame of shipment rows, extracting:
           - invoice_number (str)
           - invoice_date   (date)
-          - order_number   (str)
-          - order_id       (uuid or empty)
-          - price_wuunder (sum)
+          - order_number   (str)  ← the 14-digit line code
+          - order_id       (uuid)
+          - qty (int), unit_price (float), vat (int), price_tadde (float)
         """
-        pdf_stream = io.BytesIO(file_bytes)
-        data = []
+        stream = io.BytesIO(file_bytes)
         lines = []
-
- 
-        with pdfplumber.open(pdf_stream) as pdf:
+        with pdfplumber.open(stream) as pdf:
             for page in pdf.pages:
                 text = page.extract_text()
                 if text:
                     lines.extend(text.split("\n"))
 
-
         invoice_number = None
         invoice_date   = None
         total_value    = None
 
- 
         for line in lines:
-            if "Total" in line and "excl. VAT" in line and "+" in line:
-                euro_matches = re.findall(r"€\s?[\d\.,]+", line)
-                if euro_matches:
-                    raw = euro_matches[0].replace("€", "").replace(".", "").replace(",", ".").strip()
+            if not invoice_number and "Invoice number" in line:
+                m = re.search(r"Invoice number\s*(F-\d{4}-\d{3})", line)
+                if m:
+                    invoice_number = m.group(1)
+            if not invoice_date and "Issue date" in line:
+                m = re.search(r"Issue date\s*(\d{2}-\d{2}-\d{4})", line)
+                if m:
+                    invoice_date = datetime.strptime(m.group(1), "%d-%m-%Y").date()
+            if total_value is None and "Total" in line and "excl. VAT" in line and "+" in line:
+                m = re.search(r"€\s*([\d\.,]+)", line)
+                if m:
+                    raw = m.group(1).replace(".", "").replace(",", ".")
                     try:
                         total_value = float(raw)
                     except ValueError:
                         total_value = None
+            if invoice_number and invoice_date and total_value is not None:
                 break
-            if not invoice_number and "Invoice number" in line:
-                m = re.search(r"Invoice number*(F-\d{4}-\d{3})", line)
-                if m:
-                    invoice_number = m.group(1)
-                    print("[DEBUG] Parsed invoice number:", invoice_number)
-                    
-            if not invoice_date and "Issue date" in line:
-                m = re.search(r"Issue date*(\d{1,2}\s+\w+\s+\d{4})", line)
-                if m:
-                    inv_date = m.group(1)
-                    print("[DEBUG] Parsed invoice date:", invoice_date)
- 
+
+        data = []
         i = 0
         while i < len(lines):
-            line = lines[i].strip().replace("*","")
-            print(f"[DEBUG] line:{line}")
+            ln = lines[i].strip().replace("*", "")
             m = re.match(
-                r"^(whoppah+\d{3})\s+(\S+)\s+(.*?)\s+(.*?)\s+(.*?)\s+(€[\d]+)$",                                                                                        
-                line
+                r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)",
+                ln
             )
             if m:
-                order_number, qty, unit_price, vat, price_tot = m.groups()
+                qty          = int(m.group(1))
+                unit_price   = float(m.group(2).replace(",", "."))
+                vat_pct      = int(m.group(3))
+                total_excl   = float(m.group(4).replace(",", "."))
+                order_id     = ""
+                order_number = ""
+                for offset in range(1, 6):
+                    if i + offset >= len(lines):
+                        break
+                    nxt = lines[i + offset]
+                    uu = re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", nxt)
+                    if uu and not order_id:
+                        order_id = uu.group(0)
+                    
+                    ref = re.search(r"\b(\d{14,})\b", nxt)
+                    if ref and not order_number:
+                        order_number = ref.group(1)
+                    if order_id and order_number:
+                        break
 
-                price = float(price_tot)
-
-                order_id = ""
-                for j in range(1, 5):
-                    if i + j < len(lines):
-                        u = re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
-                                      lines[i + j])
-                        if u:
-                            order_id = u.group(0)
-                            break
-
-        
-              
                 data.append({
-                    "invoice_number":   invoice_number,
-                    "invoice_date":     invoice_date,
-                    "order_number":     order_number.lower(),
-                    "order_id":         order_id,
-                    "qty":             qty,
-                    "unit_price":       unit_price,
-                    "vat":             vat,
-                    "price_tadde":    price,
+                    "invoice_number": invoice_number,
+                    "invoice_date":   invoice_date,
+                    "order_number":   order_number,
+                    "order_id":       order_id,
+                    "qty":            qty,
+                    "unit_price":     unit_price,
+                    "vat":            vat_pct,
+                    "price_tadde":    total_excl,
                 })
                 i += 1
-                continue   
+                continue
+
             i += 1
+
         df = pd.DataFrame(data)
-      
+
         if "invoice_date" in df.columns and df["invoice_date"].dtype == object:
             df["invoice_date"] = pd.to_datetime(
                 df["invoice_date"], dayfirst=True, errors="coerce"
