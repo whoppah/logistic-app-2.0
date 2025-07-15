@@ -44,7 +44,6 @@ class WuunderParser(BaseParser):
 
  
         for line in lines:
-            print("[DEBUG] line: ",line)
             if "Totaal" in line and "BTW" in line and "+" in line:
                 euro_matches = re.findall(r"€\s?[\d\.,]+", line)
                 if euro_matches:
@@ -54,26 +53,23 @@ class WuunderParser(BaseParser):
                     except ValueError:
                         total_value = None
                 break
- 
-        i = 0
-        while i < len(lines):
-            line = lines[i].strip()
-
-         
             if not invoice_number and "Factuurnummer" in line:
                 m = re.search(r"Factuurnummer[:\s]+(\d+)", line)
                 if m:
                     invoice_number = m.group(1)
                     print("[DEBUG] Parsed invoice number:", invoice_number)
- 
+                    
             if not invoice_date and "Factuurdatum" in line:
-                invoice_date=""
                 m = re.search(r"Factuurdatum[:\s]*(\d{1,2}\s+\w+\s+\d{4})", line, flags=re.IGNORECASE)
                 if m:
                     inv_date = translate_month(m.group(1))
                     if inv_date:
                         invoice_date = inv_date
                         print("[DEBUG] Parsed invoice date:", invoice_date)
+ 
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
  
             m = re.match(
                 r"^(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(.*?)\s+package\s+(.*?)\s+([\d,]+)$",
