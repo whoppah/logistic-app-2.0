@@ -36,7 +36,7 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
             "price_wuunder",
             "Delta",
             "Delta_sum",
-            #"Invoice date",
+            "Invoice date",
             "Invoice number",
             "fuel_price",
             "shipment_tags",
