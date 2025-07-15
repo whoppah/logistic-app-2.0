@@ -78,10 +78,10 @@ class TaddeParser(BaseParser):
                         break
 
                 data.append({
-                    "invoice_number": invoice_number,
-                    "invoice_date":   invoice_date,
+                    "Invoice number": invoice_number,
+                    "Invoice date":   invoice_date,
                     "order_number":   order_number,
-                    "order_id":       order_id,
+                    "Order ID":       order_id,
                     "qty":            qty,
                     "unit_price":     unit_price,
                     "vat":            vat_pct,
@@ -94,7 +94,7 @@ class TaddeParser(BaseParser):
 
         df = pd.DataFrame(data)
 
-        if "invoice_date" in df.columns and df["invoice_date"].dtype == object:
+        if "Invoice date" in df.columns and df["Invoice date"].dtype == object:
             df["invoice_date"] = pd.to_datetime(
                 df["invoice_date"], dayfirst=True, errors="coerce"
             ).dt.date
