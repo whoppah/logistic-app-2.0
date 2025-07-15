@@ -71,7 +71,6 @@ class WuunderParser(BaseParser):
 
  
         for line in lines:
-            print(f"[DEBUG] line:{line}")
             if "Totaal" in line and "BTW" in line and "+" in line:
                 euro_matches = re.findall(r"€\s?[\d\.,]+", line)
                 if euro_matches:
@@ -98,7 +97,7 @@ class WuunderParser(BaseParser):
         i = 0
         while i < len(lines):
             line = lines[i].strip()
- 
+            print(f"[DEBUG] line:{line}")
             m = re.match(
                 r"^(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(.*?)\s+package\s+(.*?)\s+([\d,]+)$",
                 line
