@@ -3,6 +3,7 @@ from .base import BaseDeltaCalculator
 import pandas as pd
 import os
 import json
+import datetime
 from django.conf import settings
 
 
@@ -19,6 +20,8 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
         delta_sum = df_merged['Delta'].sum()
         df_merged['Delta_sum'] =delta_sum
         print("Delta sum is ", delta_sum)
+        df_merged["Invoice date"] = (
+                pd.to_datetime(df_merged["Invoice date"], errors="coerce").dt.tz_localize(None).dt.date)
         print("Invoice data is", df_merged["Invoice date"].iloc[0])
         
         flag= False if df_merged["shipping_excl_vat"].sum() == 0 else True
