@@ -40,15 +40,20 @@ def evaluate_delta(ctx: dict, partner: str, delta_threshold: float) -> dict:
         pdf_bytes=ctx.get("pdf_bytes"),
         delta_threshold=delta_threshold,
     )
-
+  
     if df_merged is None:
         return {"error": f"Delta failed for {partner}"}
-
+    records = df_merged.to_dict(orient="records")
+    for rec in records:
+        if isinstance(rec.get("order_creation_date"), (pd.Timestamp, datetime)):
+            rec["order_creation_date"] = rec["order_creation_date"].isoformat()
+        if isinstance(rec.get("Invoice date"), (pd.Timestamp, datetime, date)):
+            rec["Invoice date"] = rec["Invoice date"].isoformat()
     return {
         "delta_ok":   success,
         "parsed_ok":  parsed_ok,
         "delta_sum":  round(df_merged["Delta"].sum(), 2),
-        "data":       df_merged.to_dict(orient="records"),
+        "data":       records,
     }
 
 
