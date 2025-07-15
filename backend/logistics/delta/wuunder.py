@@ -40,7 +40,7 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
             "price_wuunder",
             "Delta",
             "Delta_sum",
-            #"Invoice date",
+            "Invoice date",
             "Invoice number"
         ]
         return df_merged[cols], delta_sum, flag
