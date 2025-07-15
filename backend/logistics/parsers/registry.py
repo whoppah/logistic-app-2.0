@@ -4,6 +4,7 @@ from .swdevries import SwdevriesParser
 from .libero import LiberoParser
 from .wuunder import WuunderParser
 from .tadde import TaddeParser
+from .magic_movers import MagicMoversParser
 
 parser_registry = {
     "brenger": BrengerParser,
@@ -11,4 +12,5 @@ parser_registry = {
     "libero": LiberoParser,
     "wuunder": WuunderParser,
     "tadde" : TaddeParser,
+    "magic_movers" : MagicMoversParser,
 }
