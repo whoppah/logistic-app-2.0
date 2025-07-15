@@ -10,5 +10,5 @@ parser_registry = {
     "swdevries": SwdevriesParser,
     "libero": LiberoParser,
     "wuunder": WuunderParser,
-    "tadde" : Tadde,
+    "tadde" : TaddeParser,
 }
