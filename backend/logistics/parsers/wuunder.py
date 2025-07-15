@@ -1,145 +1,174 @@
-#backend/logistics/parsers/wuunder.py
+# backend/logistics/parsers/wuunder.py
+import io
+import re
 import pandas as pd
 import pdfplumber
-import re
-import io
+from datetime import datetime, date
 from .base_parser import BaseParser
-from datetime import datetime
-
 
 class WuunderParser(BaseParser):
     def parse(self, file_bytes: bytes) -> pd.DataFrame:
+        """
+        Parse a Wuunder PDF into a DataFrame of shipment rows, extracting:
+          - invoice_number (str)
+          - invoice_date   (date)
+          - shipment_date  (date)
+          - order_number   (str)
+          - order_id       (uuid or empty)
+          - name, carrier, price, fuel_price
+          - price_wuunder (sum)
+          - shipment_tags, delivery_method
+        """
         pdf_stream = io.BytesIO(file_bytes)
         data = []
         lines = []
 
+ 
         with pdfplumber.open(pdf_stream) as pdf:
             for page in pdf.pages:
                 text = page.extract_text()
                 if text:
                     lines.extend(text.split("\n"))
+ 
+        def translate_month(dutch_date: str) -> date | None:
+            try:
+                 
+                dt = datetime.strptime(dutch_date.strip().lower(), "%d %B %Y")
+                return dt.date()
+            except ValueError:
+                return None
 
-        invoice_number = invoice_date = total_value = None
+        invoice_number = None
+        invoice_date   = None
+        total_value    = None
+
+ 
         for line in lines:
             if "Totaal" in line and "BTW" in line and "+" in line:
                 euro_matches = re.findall(r"€\s?[\d\.,]+", line)
                 if euro_matches:
-                    last_value = euro_matches[0]
-                    total_value_str = last_value.replace(".", "").replace(",", ".").replace("€", "").strip()
+                    raw = euro_matches[0].replace("€", "").replace(".", "").replace(",", ".").strip()
                     try:
-                        total_value = float(total_value_str)
+                        total_value = float(raw)
                     except ValueError:
                         total_value = None
                 break
-
-        def translate_month(dutch_date: str) -> str:
-            try:
-                return datetime.strptime(dutch_date, "%d %B %Y").strftime("%Y-%m-%d")
-            except ValueError:
-                return None
-
+ 
         i = 0
         while i < len(lines):
             line = lines[i].strip()
 
-            if "Factuurnummer" in line and not invoice_number:
-                match = re.search(r"Factuurnummer\s+(\d+)", line)
-                if match:
-                    invoice_number = match.group(1)
+         
+            if not invoice_number and "Factuurnummer" in line:
+                m = re.search(r"Factuurnummer[:\s]+(\d+)", line)
+                if m:
+                    invoice_number = m.group(1)
+ 
+            if not invoice_date and "Factuurdatum" in line:
+                m = re.search(r"Factuurdatum[:\s]*(\d{1,2}\s+\w+\s+\d{4})", line, flags=re.IGNORECASE)
+                if m:
+                    inv_date = translate_month(m.group(1))
+                    if inv_date:
+                        invoice_date = inv_date
+                        # debug:
+                        print("✅ Parsed invoice date:", invoice_date)
+ 
+            m = re.match(
+                r"^(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(.*?)\s+package\s+(.*?)\s+([\d,]+)$",
+                line
+            )
+            if m:
+                shipment_str, order_number, name, carrier, price_str = m.groups()
+      
+                try:
+                    shipment_date = datetime.strptime(shipment_str, "%d-%m-%Y").date()
+                except ValueError:
+                    shipment_date = None
 
-            if "Factuurdatum" in line and not invoice_date:
-                match = re.search(r"Factuurdatum:\s*(\d{1,2}\s+\w+\s+\d{4})", line)
-                if match:
-                    invoice_date = translate_month(match.group(1))
-                    print(invoice_date)
-
-            # Detect shipment row
-            match = re.match(r"^(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(.*?)\s+package\s+(.*?)\s+([\d,]+)", line)
-            if match:
-                shipment_date, order_number, name, carrier, price_str = match.groups()
                 price = float(price_str.replace(",", "."))
 
-                # Extract order ID (UUID) from next lines
                 order_id = ""
                 for j in range(1, 5):
                     if i + j < len(lines):
-                        uuid_match = re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", lines[i + j])
-                        if uuid_match:
-                            order_id = uuid_match.group(0)
+                        u = re.search(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+                                      lines[i + j])
+                        if u:
+                            order_id = u.group(0)
                             break
 
-                # Fuel price
+        
                 fuel_price = None
                 for j in range(1, 4):
-                    if i + j < len(lines):
-                        fuel_line = lines[i + j]
-                        if "Fuel" in fuel_line:
-                            if "inclusief" in fuel_line.lower():
-                                fuel_price = 0.0
-                            else:
-                                numbers = re.findall(r"[\d]+(?:[\.,]\d+)?", fuel_line)
-                                if numbers:
-                                    value_str = numbers[-1].replace(",", ".")
-                                    try:
-                                        fuel_price = float(value_str)
-                                    except ValueError:
-                                        fuel_price = None
-                            break
+                    if i + j < len(lines) and "Fuel" in lines[i + j]:
+                        nums = re.findall(r"[\d]+(?:[\,\.]\d+)?", lines[i + j])
+                        if nums:
+                            try:
+                                fuel_price = float(nums[-1].replace(",", "."))
+                            except ValueError:
+                                fuel_price = None
+                        break
 
-                # Shipment tags
-                context_lines = " ".join(lines[max(0, i-2):i+5]).lower()
+          
+                context = " ".join(lines[max(0, i - 2): i + 5]).lower()
                 tags = []
-                if "additional" in context_lines:
+                if "additional" in context:
                     tags.append("Additional")
-                if "return shipment" in context_lines or "retour" in context_lines:
+                if "retour" in context or "return shipment" in context:
                     tags.append("Return shipment")
-                if "claimprocess started" in context_lines:
+                if "claimprocess started" in context:
                     tags.append("Claim started")
-                if "claim paid" in context_lines:
+                if "claim paid" in context:
                     tags.append("Claim paid")
-                if "claim refused" in context_lines:
+                if "claim refused" in context:
                     tags.append("Claim refused")
 
-                # Delivery method
                 delivery_method = ""
                 for j in range(1, 4):
                     if i + j < len(lines):
-                        match = re.search(r"(Retour.*|Pakket op pallet|Drop At Parcelshop|ShopReturn|Standard.*)", lines[i + j])
-                        if match:
-                            delivery_method = match.group(1)
+                        dm = re.search(r"(Retour.*|Pakket op pallet|Drop At Parcelshop|ShopReturn|Standard.*)",
+                                       lines[i + j])
+                        if dm:
+                            delivery_method = dm.group(1)
                             break
 
-                price_total = price + (fuel_price if fuel_price is not None else 0.0)
+                price_total = price + (fuel_price or 0.0)
 
-                row = {
-                    "invoice_number": invoice_number,
-                    "invoice_date": invoice_date,
-                    "shipment_date": shipment_date,
-                    "order_number": order_number.lower(),
-                    "order_id": order_id,
-                    "name": name,
-                    "carrier": carrier,
-                    "price": price,
-                    "fuel_price": fuel_price,
-                    "price_wuunder": price_total,
-                    "shipment_tags": ", ".join(tags),
-                    "delivery_method": delivery_method
-                }
-                data.append(row)
+                data.append({
+                    "invoice_number":   invoice_number,
+                    "invoice_date":     invoice_date,
+                    "shipment_date":    shipment_date,
+                    "order_number":     order_number.lower(),
+                    "order_id":         order_id,
+                    "name":             name,
+                    "carrier":          carrier,
+                    "price":            price,
+                    "fuel_price":       fuel_price,
+                    "price_wuunder":    price_total,
+                    "shipment_tags":    ", ".join(tags),
+                    "delivery_method":  delivery_method,
+                })
                 i += 1
-            else:
-                i += 1
-
+                continue   
+            i += 1
         df = pd.DataFrame(data)
-        df["shipment_date"] = pd.to_datetime(df["shipment_date"], dayfirst=True, errors="coerce")
-        df["invoice_date"] = pd.to_datetime(df["invoice_date"], dayfirst=True, errors="coerce")
 
-        # Final validation
-        sum_price = round(df["price_wuunder"].sum(), 2)
-        if total_value and abs(total_value - sum_price) > 0.01:
-            print(f"[WARN] Total mismatch: invoice {total_value} != parsed {sum_price}")
-        else:
-            print(f"[OK] Total matches: {sum_price}")
+        if "shipment_date" in df.columns:
+            df["shipment_date"] = pd.to_datetime(
+                df["shipment_date"], errors="coerce"
+            ).dt.date
+
+
+        if "invoice_date" in df.columns and df["invoice_date"].dtype == object:
+            df["invoice_date"] = pd.to_datetime(
+                df["invoice_date"], dayfirst=True, errors="coerce"
+            ).dt.date
+
+        if total_value is not None:
+            parsed_sum = round(df["price_wuunder"].sum(), 2)
+            if abs(parsed_sum - total_value) > 0.01:
+                print(f"[WARN] Total mismatch: reported {total_value} != parsed {parsed_sum}")
+            else:
+                print(f"[OK] Total matches: {parsed_sum}")
 
         self.validate(df)
         return df
