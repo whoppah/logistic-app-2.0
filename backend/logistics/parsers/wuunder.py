@@ -51,6 +51,7 @@ class WuunderParser(BaseParser):
                 match = re.search(r"Factuurdatum:\s*(\d{1,2}\s+\w+\s+\d{4})", line)
                 if match:
                     invoice_date = translate_month(match.group(1))
+                    print(invoice_date)
 
             # Detect shipment row
             match = re.match(r"^(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(.*?)\s+package\s+(.*?)\s+([\d,]+)", line)
