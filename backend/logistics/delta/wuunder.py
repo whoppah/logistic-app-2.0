@@ -19,7 +19,8 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
         delta_sum = df_merged['Delta'].sum()
         df_merged['Delta_sum'] =delta_sum
         print("Delta sum is ", delta_sum)
-        print("Invoice date is ", df_merged["Invoice date"])
+        print("Invoice data is", df_merged["Invoice date"].iloc[0])
+        
         flag= False if df_merged["shipping_excl_vat"].sum() == 0 else True
         filtered_df =df_merged.loc[df_merged['Delta']>=0,  ["tracking_id","Order ID" ,"buyer_country-seller_country", "weight", "price_wuunder", "shipping_excl_vat", "Delta","Delta_sum"]]
         if not filtered_df.empty:
