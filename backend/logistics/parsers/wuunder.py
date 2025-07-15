@@ -6,6 +6,22 @@ import pdfplumber
 from datetime import datetime, date
 from .base_parser import BaseParser
 
+# Map Dutch month names → month number
+_DUTCH_MONTHS = {
+    "januari":   1,
+    "februari":  2,
+    "maart":     3,
+    "april":     4,
+    "mei":       5,
+    "juni":      6,
+    "juli":      7,
+    "augustus":  8,
+    "september": 9,
+    "oktober":  10,
+    "november": 11,
+    "december": 12,
+}
+
 class WuunderParser(BaseParser):
     def parse(self, file_bytes: bytes) -> pd.DataFrame:
         """
@@ -30,13 +46,24 @@ class WuunderParser(BaseParser):
                 if text:
                     lines.extend(text.split("\n"))
  
-        def translate_month(dutch_date: str) -> date | None:
-            try:
-                 
-                dt = datetime.strptime(dutch_date.strip().lower(), "%d %B %Y")
-                return dt.date()
-            except ValueError:
+        def translate_month(self, dutch_date: str) -> date | None:
+            """
+            Turn dutch date into a date.
+            """
+            parts = dutch_date.strip().lower().split()
+            if len(parts) != 3:
                 return None
+            day_str, month_str, year_str = parts
+            try:
+                day   = int(day_str)
+                month = _DUTCH_MONTHS.get(month_str)
+                year  = int(year_str)
+                if month:
+                    return date(year, month, day)
+            except ValueError:
+                pass
+            return None
+
 
         invoice_number = None
         invoice_date   = None
@@ -63,7 +90,6 @@ class WuunderParser(BaseParser):
             if not invoice_date and "Factuurdatum" in line:
                 m = re.search(r"Factuurdatum[:\s]*(\d{1,2}\s+\w+\s+\d{4})", line, flags=re.IGNORECASE)
                 if m:
-                    print("[DEBUG] Parsed dutch date:", m.group(1))
                     inv_date = translate_month(m.group(1))
                     if inv_date:
                         invoice_date = inv_date
