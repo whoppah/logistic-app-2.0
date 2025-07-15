@@ -16,8 +16,8 @@ const options = [
   { key: "swdevries",    label: "SwDeVries",   icon: <ArchiveIcon /> },
   { key: "wuunder",      label: "Wuunder",       icon: <PackageIcon /> },
   { key: "magic_movers", label: "MagicMovers",  icon: <BoxIcon /> },
-  { key: "transpoksi",   label: "Transpoksi",    icon: <RepeatIcon /> },
   { key: "tadde",        label: "Tadde",         icon: <Activity /> },
+  { key: "transpoksi",   label: "Transpoksi",    icon: <RepeatIcon /> },
 ];
 
 export default function PartnerSelector({ partner, setPartner }) {
