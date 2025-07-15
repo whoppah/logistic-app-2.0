@@ -44,6 +44,7 @@ class WuunderParser(BaseParser):
 
  
         for line in lines:
+            print("[DEBUG] line: ",line)
             if "Totaal" in line and "BTW" in line and "+" in line:
                 euro_matches = re.findall(r"€\s?[\d\.,]+", line)
                 if euro_matches:
