@@ -113,7 +113,16 @@ class TaskResultView(APIView):
             return Response({"error": "Not ready", "state": res.state},
                             status=status.HTTP_202_ACCEPTED)
 
-        return Response(res.result or {}, status=status.HTTP_200_OK)
+        try:
+            result = res.result or {}
+        except Exception as e:
+            # wrap any deserialization or application‐level error
+            return Response(
+                {"error": "Failed to fetch task result", "detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(result, status=status.HTTP_200_OK)
 
 class AnalyticsView(APIView):
     """
