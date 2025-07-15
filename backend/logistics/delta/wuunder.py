@@ -38,9 +38,9 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
             "Delta_sum",
             "Invoice date",
             "Invoice number",
-            "fuel_price",
-            "shipment_tags",
-            "delivery_method"
+            #"fuel_price",
+            #"shipment_tags",
+            #"delivery_method"
         ]
         return df_merged[cols], delta_sum, flag
         
