@@ -1,6 +1,7 @@
 #backend/logistics/tasks.py
 import logging
 import redis
+import pandas as pd
 from celery import shared_task, chain
 from django.conf import settings
 from logistics.services.delta_checker import DeltaChecker
