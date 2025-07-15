@@ -95,8 +95,8 @@ class TaddeParser(BaseParser):
         df = pd.DataFrame(data)
 
         if "Invoice date" in df.columns and df["Invoice date"].dtype == object:
-            df["invoice_date"] = pd.to_datetime(
-                df["invoice_date"], dayfirst=True, errors="coerce"
+            df["Invoice date"] = pd.to_datetime(
+                df["Invoice date"], dayfirst=True, errors="coerce"
             ).dt.date
 
         if total_value is not None:
