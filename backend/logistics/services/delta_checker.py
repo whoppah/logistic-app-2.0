@@ -11,6 +11,7 @@ from logistics.delta.wuunder import WuunderDeltaCalculator
 from logistics.delta.libero import LiberoDeltaCalculator
 from logistics.delta.swdevries import SwdevriesDeltaCalculator
 from logistics.delta.tadde import TaddeDeltaCalculator
+from logistics.delta.magic_movers import MagicMoversDeltaCalculator
 from logistics.models import InvoiceRun, InvoiceLine
 
 
@@ -67,6 +68,10 @@ class DeltaChecker:
             elif partner == "tadde":
                 df_invoice = parser.parse(invoice_bytes)
                 calculator = TaddeDeltaCalculator(df_invoice, df_order)
+                
+            elif partner == "magic_movers":
+                df_invoice = parser.parse(invoice_bytes)
+                calculator = MagicMoversDeltaCalculator(df_invoice, df_order)
 
             else:
                 raise NotImplementedError(f"No calculator configured for partner '{partner}'")
