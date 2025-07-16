@@ -42,6 +42,11 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
             #"shipment_tags",
             #"delivery_method"
         ]
+        for cat_col in ("cat_level_1_and_2", "cat_level_2_and_3"):
+             if cat_col not in df_merged.columns:
+                 df_merged[cat_col] = ""
+             else:
+                 df_merged[cat_col] = df_merged[cat_col].fillna("")
         return df_merged[cols], delta_sum, flag
         
         
