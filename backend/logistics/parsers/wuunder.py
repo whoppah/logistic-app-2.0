@@ -84,7 +84,7 @@ class WuunderParser(BaseParser):
                 m = re.search(r"Factuurnummer[:\s]+(\d+)", line)
                 if m:
                     invoice_number = m.group(1)
-                    #print("[DEBUG] Parsed invoice number:", invoice_number)
+                    print("[DEBUG] Parsed invoice number:", invoice_number)
                     
             if not invoice_date and "Factuurdatum" in line:
                 m = re.search(r"Factuurdatum[:\s]*(\d{1,2}\s+\w+\s+\d{4})", line, flags=re.IGNORECASE)
@@ -97,7 +97,7 @@ class WuunderParser(BaseParser):
         i = 0
         while i < len(lines):
             line = lines[i].strip().replace("*","")
-            print(f"[DEBUG] line:{line}")
+            #print(f"[DEBUG] line:{line}")
             m = re.match(
                 r"^(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(.*?)\s+package\s+(.*?)\s+(-?[\d,]+)$",                                                                                        
                 line
