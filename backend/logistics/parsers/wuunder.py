@@ -166,7 +166,6 @@ class WuunderParser(BaseParser):
                     "order_id":         order_id,
                     "name":             name,
                     "carrier":          carrier,
-                    "price":            price,
                     "fuel_price":       fuel_price,
                     "price_wuunder":    price_total,
                     "shipment_tags":    ", ".join(tags),
