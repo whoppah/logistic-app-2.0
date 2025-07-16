@@ -84,13 +84,27 @@ class DeltaChecker:
 
     def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
         # 1. Compute the delta
-        df_merged, raw_delta_sum, raw_parsed_flag = compute_fn()
-        if df_merged is None:
+        result = compute_fn()
+        if result is None:
             return False, False, None
+    
+        if not isinstance(result, tuple) or len(result) != 3:
+            raise RuntimeError(
+                f"{partner}.compute() should return (df, delta_sum, flag) but got {type(result)}"
+            )
+    
+        df_merged, raw_delta_sum, raw_parsed_flag = result
 
+        if not isinstance(df_merged, pd.DataFrame):
+            raise TypeError(f"{partner}.compute(): expected DataFrame, got {type(df_merged)}")
+        if not (isinstance(raw_delta_sum, (int,float))):
+            raise TypeError(f"{partner}.compute(): expected numeric delta_sum, got {type(raw_delta_sum)}")
+        if not isinstance(raw_parsed_flag, bool):
+            raise TypeError(f"{partner}.compute(): expected bool flag, got {type(raw_parsed_flag)}")
+    
         # 2. Normalize results
         delta_sum   = float(raw_delta_sum)
-        parsed_flag = bool(raw_parsed_flag)
+        parsed_flag = raw_parsed_flag   
         delta_ok    = delta_sum <= float(delta_threshold)
 
         # 3. Ensure numeric columns are float
