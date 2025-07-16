@@ -42,10 +42,10 @@ class TaddeParser(BaseParser):
             if total_value is None and "Total" in line and "excl. VAT" in line:
                 m = re.search(r"€\s*([\d\.,]+)", line)
                 if m:
-                    raw = m.group(1)
-                    print("[DEBUG] total_raw is ",raw)
+                    raw = m.group(1).replace(",","")
                     try:
                         total_value = float(raw)
+                         print("[DEBUG] total_value is ",total_value)
                     except ValueError:
                         total_value = None
             if invoice_number and invoice_date and total_value is not None:
