@@ -42,7 +42,7 @@ class TaddeParser(BaseParser):
             if total_value is None and "Total" in line and "excl. VAT" in line:
                 m = re.search(r"€\s*([\d\.,]+)", line)
                 if m:
-                    raw = m.group(1).replace(".", "").replace(",", ".")
+                    raw = m.group(1).replace(",", "")
                     try:
                         total_value = float(raw)
                     except ValueError:
