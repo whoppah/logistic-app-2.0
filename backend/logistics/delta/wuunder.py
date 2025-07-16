@@ -17,10 +17,11 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
         df_merged["shipping_excl_vat"] = df_merged["shipping_excl_vat"].astype(float)
         df_merged['Delta'] = df_merged['price_wuunder'].abs() - df_merged['shipping_excl_vat'].abs()
         df_merged.rename(columns={"invoice_date":"Invoice date","invoice_number":"Invoice number", "shipping_excl_vat":"price"}, inplace=True)
-        delta_sum = df_merged['Delta'].sum()
+        delta_sum = float(df_merged['Delta'].sum())
         df_merged['Delta_sum'] =delta_sum
         print("Delta sum is ", delta_sum)
-        flag= False if df_merged["price"].sum() == 0 else True
+        total_price = float(df_merged['price'].abs().sum())
+        flag = bool(total_price != 0.0)
         filtered_df =df_merged.loc[df_merged['Delta']>=0,  ["tracking_id","Order ID" ,"buyer_country-seller_country", "weight", "price_wuunder", "price", "Delta","Delta_sum"]]
         if not filtered_df.empty:
             print("The following rows have wuunder price higher than one expected from shipping_excl_vat \n",filtered_df)
