@@ -60,9 +60,7 @@ class WuunderDeltaCalculator(BaseDeltaCalculator):
             ],
         ]
         if not filtered_df.empty:
-            print(
-                "The following rows have wuunder price higher than one expected from shipping_excl_vat:\n",
-                filtered_df,
+            print("The following rows have wuunder price higher than one expected from shipping_excl_vat:\n",filtered_df)
 
         cols = [
             "order_creation_date",
