@@ -46,7 +46,7 @@ class TaddeParser(BaseParser):
                     raw = m.group(1).replace(",","")
                     try:
                         total_value = float(raw)
-                         print("[DEBUG] total_value is ",total_value)
+                        print("[DEBUG] total_value is ",total_value)
                     except ValueError:
                         total_value = None
             if invoice_number and invoice_date and total_value is not None:
