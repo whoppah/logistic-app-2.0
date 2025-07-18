@@ -39,14 +39,16 @@ class BrengerDeltaCalculator:
         df_merged["weight"] = df_merged["weight"].astype(float).round(2)
 
         prices = []
-
+        
+        ALLOWED_ROUTES = ["NL-NL","BE-NL","NL-BE","BE-BE"]
         for _, row in df_merged.iterrows():
             category = row["cat_level_2_and_3"]
             if not category:
                 category = row["cat_level_1_and_2"]
             weight   = row["weight"]
             route    = row["buyer_country-seller_country"]
-
+            if route not in ALLOWED_ROUTES:
+                route = "NL-NL" #hard-coded
             matched_price = 0
            
             for _, price_row in self.df_price.iterrows():
