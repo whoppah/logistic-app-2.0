@@ -29,6 +29,7 @@ class TaddeParser(BaseParser):
         total_value    = None
 
         for line in lines:
+            print("[DEBUG] line:",line)
             if not invoice_number and "Invoice number" in line:
                 m = re.search(r"Invoice number\s*(F-\d{4}-\d{3})", line)
                 if m:
