@@ -107,14 +107,12 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
 
         postal_codes_ruhrNL = set([
             "DE40", "DE41", "DE42", "DE44", "DE45", "DE46", "DE47", "DE50",
-            "NL10", "NL11", "NL12", "NL13", "NL14", "NL15", "NL16", "NL17", "NL18", "NL19", 
-            "NL20", "NL21", "NL22", "NL23", "NL24", "NL25", "NL26", "NL27", "NL28", "NL29", 
-            "NL30", "NL33", "NL34", "NL35", "NL36", "NL37", "NL38", "NL39", "NL40", 
-            "NL41", "NL42", "NL48", "NL49", "NL50", "NL51", "NL52", "NL53", 
-            "NL54", "NL55", "NL56", "NL57", "NL58", "NL59", "NL65", "NL66", "NL67", "NL68", "NL69", "NL70", "NL71", "NL72", "NL73", 
-            "NL74", "NL75", "NL76", "NL77", "NL78", "NL79", "NL80", "NL81", "NL82", "NL83", 
-            "NL84", "NL85", "NL86", "NL87", "NL88", "NL89", "NL90", "NL91", "NL92", "NL93", 
-            "NL94", "NL95", "NL96", "NL97", "NL98", "NL99"])
+            "NL10", "NL11", "NL12", "NL13", "NL14", "NL15", "NL16", "NL17", "NL18", "NL19","NL20", "NL21", "NL22", "NL23", "NL24", "NL25", "NL26", "NL27", "NL28", "NL29","NL30", 
+            "NL33", "NL34", "NL35", "NL36", "NL37", "NL38", "NL39", "NL40", "NL41", "NL42", 
+            "NL48", "NL49", "NL50", "NL51", "NL52", "NL53", 
+            "NL54", "NL55", "NL56", "NL57", "NL58", "NL59", 
+            "NL65", "NL66", "NL67", "NL68", "NL69", "NL70", "NL71", "NL72", "NL73","NL74", "NL75", "NL76", "NL77", "NL78", "NL79", "NL80", "NL81", "NL82", "NL83","NL84", "NL85", "NL86", "NL87", "NL88", "NL89", "NL90", "NL91", "NL92", "NL93","NL94", "NL95", "NL96", "NL97", "NL98", "NL99",
+        ])
         # define all the continuous blocks for NODE
         ranges = [
             range(10000, 11000),   # 10000–10999
@@ -183,12 +181,9 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
             category = row["cat_level_2_and_3"]
             #print(f"[DEBUG] categories {category}")
             b_post = row["buyer_post_code"]
-
-
             s_post = row["seller_post_code"]
             b_ctry = row["buyer_country"]
             s_ctry = row["seller_country"]
-
             b_ruhr = b_ctry + b_post[:2]
             s_ruhr = s_ctry + s_post[:2]
         
@@ -201,9 +196,11 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
                     elif b_post in postal_codes_NODE or s_post in postal_codes_NODE:
                         matched_price = 190
                     else:
-                        print(f"[WARN] no matched_price found. Update postal code NODE ranges. The buyer_post_code is {b_post} and the seller_post_code is {s_post}.")
+                        print(f"[WARN] no matched_price found. Update postal code NODE ranges ( the buyer_post_code is {b_post} and the seller_post_code is {s_post} ) or the RUHR values (the buyer ruhr is {b_ruhr} and the seller ruhr is {s_ruhr}).")
                         
                     break
+                else:
+                    print(f"[WARN] no price_row categories found to match with the related CMS-category. Update the price table categories.")
             results.append(matched_price)
         
         return results
