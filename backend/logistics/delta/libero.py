@@ -199,9 +199,11 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
                     elif b_post in postal_codes_NODE or s_post in postal_codes_NODE:
                         matched_price = 190
                     else:
-                        print(f"[DEBUG] no matched_price found. Update postal code NODE ranges. Set it to 190 for now.")
-                        mathced_price = 190
+                        print("[DEBUG] no matched_price found. Update postal code NODE ranges")
                     break
+                else:
+                    print(f"[DEBUG] the price_row category {price_row.get("CMS category") } != {category}. Price set to 100.")
+                    matched_price=100
 
             results.append(matched_price)
 
