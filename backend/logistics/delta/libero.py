@@ -201,7 +201,8 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
                     elif b_post in postal_codes_NODE or s_post in postal_codes_NODE:
                         matched_price = 190
                     else:
-                        print("[DEBUG] no matched_price found. Update postal code NODE ranges")
+                        print(f"[WARN] no matched_price found. Update postal code NODE ranges. The buyer_post_code is {b_post} and the seller_post_code is {s_post}.")
+                        
                     break
             results.append(matched_price)
         
