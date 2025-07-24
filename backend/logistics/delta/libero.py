@@ -181,6 +181,7 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
         for _, row in df.iterrows():
             matched_price = 0
             category = row["cat_level_2_and_3"]
+            print(f"[DEBUG] categories {category}")
             b_post = row["buyer_post_code"]
 
 
@@ -190,9 +191,10 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
 
             b_ruhr = b_ctry + b_post[:2]
             s_ruhr = s_ctry + s_post[:2]
-
-            # 2) Iterate the loaded Germany price DataFrame
+        
+            # iterate the loaded Germany price DataFrame
             for _, price_row in df_price_de.iterrows():
+                print(f"[DEBUG] Price_row CMS category {price_row.get("CMS category")}")
                 if price_row.get("CMS category") == category:
                     if b_ruhr in postal_codes_ruhrNL and s_ruhr in postal_codes_ruhrNL:
                         matched_price = price_row.get("DE", matched_price)
@@ -201,10 +203,6 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
                     else:
                         print("[DEBUG] no matched_price found. Update postal code NODE ranges")
                     break
-                else:
-                    print(f"[DEBUG] the price_row category {price_row.get("CMS category") } != {category}. Price set to 100.")
-                    matched_price=100
-
             results.append(matched_price)
-
+        
         return results
