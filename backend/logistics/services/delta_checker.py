@@ -1,9 +1,8 @@
 # backend/logistics/services/delta_checker.py
 import pandas as pd
-from typing import Optional, Tuple
+from typing import Optional,Tuple
+from django.conf import settings
 from django.db import transaction
-from django.db.models import F
-from django.db import IntegrityError
 from logistics.parsers.registry import parser_registry
 from logistics.services.spreadsheet_exporter import SpreadsheetExporter
 from logistics.services.database_service import DatabaseService
@@ -11,8 +10,8 @@ from logistics.delta.brenger import BrengerDeltaCalculator
 from logistics.delta.wuunder import WuunderDeltaCalculator
 from logistics.delta.libero import LiberoDeltaCalculator
 from logistics.delta.swdevries import SwdevriesDeltaCalculator
-from logistics.delta.tadde import TaddeDeltaCalculator
 from logistics.delta.magic_movers import MagicMoversDeltaCalculator
+from logistics.delta.tadde import TaddeDeltaCalculator
 from logistics.models import InvoiceRun, InvoiceLine
 
 
@@ -46,7 +45,8 @@ class DeltaChecker:
                 raise ValueError(f"Unsupported partner: {partner}")
 
             parser = parser_cls()
-            # Pick parser + calculator
+
+            # Parse invoice bytes and select appropriate calculator
             if partner == "libero":
                 if pdf_bytes is None:
                     raise ValueError("Libero requires both invoice & PDF bytes")
@@ -64,7 +64,7 @@ class DeltaChecker:
             elif partner == "brenger":
                 df_invoice = parser.parse(invoice_bytes)
                 calculator = BrengerDeltaCalculator(df_invoice, df_order)
-
+                
             elif partner == "tadde":
                 df_invoice = parser.parse(invoice_bytes)
                 calculator = TaddeDeltaCalculator(df_invoice, df_order)
@@ -83,22 +83,22 @@ class DeltaChecker:
             return False, False, None
 
     def _process(self, df_invoice, compute_fn, partner, df_list, delta_threshold):
-        # 1. Run partner‐specific compute
+        # 1. Compute the delta
         df_merged, raw_delta_sum, raw_parsed_flag = compute_fn()
         if df_merged is None:
             return False, False, None
 
-        # 2. Normalize
+        # 2. Normalize results
         delta_sum   = float(raw_delta_sum)
         parsed_flag = bool(raw_parsed_flag)
         delta_ok    = delta_sum <= float(delta_threshold)
 
-        # 3. Cast numeric columns
+        # 3. Ensure numeric columns are float
         for col in ("Delta", "Delta_sum"):
             if col in df_merged.columns:
                 df_merged[col] = df_merged[col].astype(float)
 
-        # 4. Attach for downstream usage
+        # 4. Append to df_list for any downstream use
         if not df_merged.empty:
             df_merged["partner"] = partner
             df_list.append(df_merged)
@@ -111,43 +111,31 @@ class DeltaChecker:
             }])
             df_list.append(summary)
 
-        # 5. Extract invoice_number for deduplication
+        # 5. Extract (or default) invoice_number
         invoice_number = ""
         if not df_merged.empty:
             invoice_number = df_merged["Invoice number"].iloc[0] or ""
 
-        # 6. Create or update InvoiceRun & lines with duplicate protection
+        # 6. Create or update InvoiceRun and its lines
         with transaction.atomic():
-            try:
-                run, created = InvoiceRun.objects.get_or_create(
-                    partner        = partner,
-                    invoice_number = invoice_number,
-                    defaults={
-                        "delta_sum": delta_sum,
-                        "parsed_ok": parsed_flag,
-                        "num_rows":  len(df_merged),
-                    }
-                )
-            except InvoiceRun.MultipleObjectsReturned:
-                # More than one run exists: keep the latest, drop the rest
-                qs = InvoiceRun.objects.filter(
-                    partner=partner,
-                    invoice_number=invoice_number
-                ).order_by("-timestamp")
-                run = qs.first()
-                qs.exclude(pk=run.pk).delete()
-                created = False
-
+            run, created = InvoiceRun.objects.get_or_create(
+                partner        = partner,
+                invoice_number = invoice_number,
+                defaults={
+                    "delta_sum": delta_sum,
+                    "parsed_ok": parsed_flag,
+                    "num_rows":  len(df_merged),
+                }
+            )
             if not created:
-                # Update the existing run
+                # update an existing run
                 run.delta_sum = delta_sum
                 run.parsed_ok = parsed_flag
                 run.num_rows  = len(df_merged)
                 run.save()
-                # Clear out its old lines
                 InvoiceLine.objects.filter(run=run).delete()
 
-            # Bulk‐create new lines
+            # build and bulk‐create new InvoiceLine rows
             key_actual = f"price_{partner}"
             lines = []
             for rec in df_merged.to_dict(orient="records"):
@@ -168,7 +156,7 @@ class DeltaChecker:
                 ))
             InvoiceLine.objects.bulk_create(lines)
 
-        # 7. (Optional) Export to Google Sheets
+        # 7.  Export to Google Sheets
         try:
             sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
             print(f"✅ Exported to Google Sheets: {sheet_url}")
