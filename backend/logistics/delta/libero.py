@@ -197,10 +197,7 @@ class LiberoDeltaCalculator(BaseDeltaCalculator):
                         matched_price = 190
                     else:
                         print(f"[WARN] no matched_price found. Update postal code NODE ranges ( the buyer_post_code is {b_post} and the seller_post_code is {s_post} ) or the RUHR values (the buyer ruhr is {b_ruhr} and the seller ruhr is {s_ruhr}).")
-                        
                     break
-                else:
-                    print(f"[WARN] no price_row categories found to match with the related CMS-category. Update the price table categories.")
             results.append(matched_price)
         
         return results
