@@ -58,6 +58,7 @@ class TaddeParser(BaseParser):
         whop_pattern  = re.compile(r"^(whoppah\d{3,})$", re.IGNORECASE)
 
         for i, ln in enumerate(lines):
+            print(f"\n [DEBUG] line {i} is {ln}")
             qm = price_pattern.match(ln)
             if not qm:
                 continue
