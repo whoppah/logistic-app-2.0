@@ -31,33 +31,42 @@ class TaddeParser(BaseParser):
         invoice_number: str | None = None
         invoice_date: date | None   = None
         total_value: float | None   = None
+        invoice_number = None
+        invoice_date   = None
+        total_value    = None
 
-        for ln in lines:
-            if not invoice_number:
-                m = re.match(r"Invoice number\s*(F-\d{4}-\d{3})", ln)
+        # 2) first pass: pull invoice header and total
+        for line in lines:
+            if not invoice_number and "Invoice number" in line:
+                m = re.search(r"Invoice number\s*(F-\d{4}-\d{3})", line)
                 if m:
                     invoice_number = m.group(1)
-            if not invoice_date:
-                m = re.match(r"Issue date\s*(\d{2}-\d{2}-\d{4})", ln)
+                    print(f"[DEBUG] Invoice number {invoice_number}")
+
+            if not invoice_date and "Issue date" in line:
+                m = re.search(r"Issue date\s*(\d{2}-\d{2}-\d{4})", line)
                 if m:
                     invoice_date = datetime.strptime(m.group(1), "%d-%m-%Y").date()
-            if total_value is None and "Total excl. VAT" in ln:
-                m = re.search(r"€\s*([\d\.,]+)", ln)
+                    print(f"[DEBUG] Invoice date {invoice_date}")
+
+            if total_value is None and "Total" in line and "excl. VAT" in line:
+                m = re.search(r"€\s*([\d\.,]+)", line)
                 if m:
-                    raw = m.group(1).replace(".", "").replace(",", ".")
+                    raw = m.group(1).replace(",", "")
                     try:
                         total_value = float(raw)
+                        print("[DEBUG] total_value is", total_value)
                     except ValueError:
                         total_value = None
-            # stop once we have everything
+
             if invoice_number and invoice_date and total_value is not None:
                 break
-
         #Walk lines to capture each “whoppahXXX” block
         data = []
         i = 0
         while i < len(lines):
             ln = lines[i]
+            print(f"[DEBUG] line {i} is {ln}")
             # match the whoppah code
             m = re.match(r"^(whoppah\d{3,})$", ln, flags=re.IGNORECASE)
             if m:
