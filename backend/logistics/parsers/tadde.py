@@ -59,6 +59,7 @@ class TaddeParser(BaseParser):
             i = 0
             while i < len(lines):
                 ln = lines[i]
+                print(f"\n[LINE {i}] {ln}")
                 wm = whop_re.match(ln)
                 if not wm:
                     i += 1
