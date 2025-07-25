@@ -55,16 +55,21 @@ class TaddeParser(BaseParser):
                 break
 
         # 3) compile regexes
-        price_re    = re.compile(r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)")
-        uuid_re     = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.IGNORECASE)
-        whop_re     = re.compile(r"^(whoppah\d{3,})$", re.IGNORECASE)
+        price_re = re.compile(r"(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s*%\s*€\s*([\d\.,]+)", re.IGNORECASE)
+        uuid_re  = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+        whop_re  = re.compile(r"whoppah\d{3,}", re.IGNORECASE)
 
+        # 4) walk lines and extract rows
         data = []
         n = len(lines)
         for i, ln in enumerate(lines):
-            print(f"\n [DEBUG] line {i} is {ln}")
-            pm = price_re.match(ln)
+            print(f"[DEBUG] line {i} is: {ln}")
+            if "unit €" not in ln.lower():
+                continue
+
+            pm = price_re.search(ln)
             if not pm:
+                print(f"[WARN] price pattern not found in line {i}")
                 continue
 
             qty        = int(pm.group(1))
@@ -72,48 +77,51 @@ class TaddeParser(BaseParser):
             vat_pct    = int(pm.group(3))
             price_tad  = float(pm.group(4).replace(",", "."))
 
-            # search within ±6 lines for whoppahXXX
+            # search ±6 lines for whoppah code & UUID
+            lo, hi = max(0, i-6), min(n, i+7)
             order_number = None
-            lo = max(0,   i - 6)
-            hi = min(n, i + 7)
+            order_id     = None
             for j in range(lo, hi):
-                wm = whop_re.match(lines[j])
-                if wm:
-                    order_number = wm.group(1).lower()
+                if order_number is None:
+                    wm = whop_re.search(lines[j])
+                    if wm:
+                        order_number = wm.group(0).lower()
+                if order_id is None:
+                    uu = uuid_re.search(lines[j])
+                    if uu:
+                        order_id = uu.group(0)
+                if order_number and order_id:
                     break
 
-            # same for UUID
-            order_id = None
-            for j in range(lo, hi):
-                uu = uuid_re.search(lines[j])
-                if uu:
-                    order_id = uu.group(0)
-                    break
+            if not order_number or not order_id:
+                print(
+                    f"[WARN] skipping line {i}: "
+                    f"{'no whoppah code ' if not order_number else ''}"
+                    f"{'no UUID' if not order_id else ''}"
+                )
+                continue
 
-            if order_number and order_id:
-                data.append({
-                    "Invoice number": invoice_number or "",
-                    "Invoice date":   invoice_date,
-                    "order_number":   order_number,
-                    "Order ID":       order_id,
-                    "qty":            qty,
-                    "unit_price":     unit_price,
-                    "vat":            vat_pct,
-                    "price_tadde":    price_tad,
-                })
-            else:
-                print(f"[WARN] skipping line {i}: couldn't find "
-                      f"{'whoppah code' if not order_number else ''} "
-                      f"{'UUID' if not order_id else ''}")
+            data.append({
+                "Invoice number": invoice_number or "",
+                "Invoice date":   invoice_date,
+                "order_number":   order_number,
+                "Order ID":       order_id,
+                "qty":            qty,
+                "unit_price":     unit_price,
+                "vat":            vat_pct,
+                "price_tadde":    price_tad,
+            })
 
-        # 4) build DataFrame
+        # 5) build DataFrame
         df = pd.DataFrame(data)
+        print(f"[DEBUG] Parsed {len(df)} line(s) out of {n} total")
+
         if "Invoice date" in df.columns:
             df["Invoice date"] = pd.to_datetime(
                 df["Invoice date"], dayfirst=True, errors="coerce"
             ).dt.date
 
-        # 5) sanity check total
+        # 6) sanity-check totals
         if total_value is not None:
             parsed_sum = round(df["price_tadde"].sum(), 2)
             if abs(parsed_sum - total_value) > 0.01:
@@ -121,6 +129,6 @@ class TaddeParser(BaseParser):
             else:
                 print(f"[OK] Total matches: {parsed_sum}")
 
-        # 6) validate & return
+        # 7) validate & return
         self.validate(df)
         return df
