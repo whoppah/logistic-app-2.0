@@ -36,14 +36,17 @@ class TaddeParser(BaseParser):
                 m = re.search(r"Invoice number\s*(F-\d{4}-\d{3})", ln)
                 if m:
                     invoice_number = m.group(1)
+                    print(f"\n [DEBUG] Invoice number is {invoice_number}")
             if invoice_date is None:
                 m = re.search(r"Issue date\s*(\d{2}-\d{2}-\d{4})", ln)
                 if m:
                     invoice_date = datetime.strptime(m.group(1), "%d-%m-%Y").date()
+                    print(f"\n [DEBUG] Invoice date is {invoice_date}")
             if total_value is None and "Total excl. VAT" in ln:
                 m = re.search(r"€\s*([\d\.,]+)", ln)
                 if m:
-                    raw = m.group(1).replace(".", "").replace(",", ".")
+                    raw = m.group(1).replace(",", "")
+                    print(f"\n [DEBUG] Total value is {raw}")
                     try:
                         total_value = float(raw)
                     except ValueError:
