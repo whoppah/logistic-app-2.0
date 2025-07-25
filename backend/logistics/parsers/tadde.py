@@ -158,7 +158,10 @@ class TaddeParser(BaseParser):
                 print(f"[WARN] Total excl. VAT mismatch: reported {total_value} vs parsed {parsed_sum}")
             else:
                 print(f"[OK] Total matches: {parsed_sum}")
-
+         # *** DEBUG DUMP ***
+        print("[TADDEParser] final invoice‑DF:")
+        print(df.to_string(index=False))
+        
         # 6) Final validate & return
         self.validate(df)
         return df
