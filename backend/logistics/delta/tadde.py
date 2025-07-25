@@ -9,10 +9,10 @@ from django.conf import settings
 class TaddeDeltaCalculator(BaseDeltaCalculator):
     def compute(self):
         partner_value = "tadde"
-        
+        print(f"External courier providers list {self.df_order[partner_value].unique().tolist()}")
         # Merge invoice and order data
         df_merged = self.df_invoice.merge(
-            self.df_order.query(f"external_courier_provider == '{partner_value}'"),
+            self.df_order,#.query(f"external_courier_provider == '{partner_value}'"),
             on="Order ID",
             how="inner"
         )
