@@ -16,152 +16,137 @@ class TaddeParser(BaseParser):
           - Order ID       (UUID)
           - qty (int), unit_price (float), vat (int), price_tadde (float)
         """
-        data = []
+        # 1) read all lines
         pdf_stream = io.BytesIO(file_bytes)
-        total_value = None
-        invoice_date = invoice_num = None
-
-        # 1) Read metadata
-        print("🔍 Starting metadata pass")
-        all_lines = []
+        lines = []
         with pdfplumber.open(pdf_stream) as pdf:
-            for page in pdf.pages:
+            for p, page in enumerate(pdf.pages):
                 text = page.extract_text() or ""
-                all_lines += text.split("\n")
+                for ln in text.split("\n"):
+                    stripped = ln.strip()
+                    if stripped:
+                        lines.append(stripped)
+        print(f"[DEBUG] Total lines read: {len(lines)}")
 
-        for ln in all_lines:
-            ln = ln.strip()
-            if invoice_num is None:
+        # 2) pull header metadata
+        invoice_number = None
+        invoice_date   = None
+        total_value    = None
+        for ln in lines:
+            if invoice_number is None:
                 m = re.search(r"Invoice number\s*(F-\d{4}-\d{3})", ln)
                 if m:
-                    invoice_num = m.group(1)
-                    print(f"[META] Found Invoice number: {invoice_num}")
+                    invoice_number = m.group(1)
+                    print(f"[DEBUG] Invoice number: {invoice_number}")
             if invoice_date is None:
                 m = re.search(r"Issue date\s*(\d{2}-\d{2}-\d{4})", ln)
                 if m:
                     invoice_date = datetime.strptime(m.group(1), "%d-%m-%Y").date()
-                    print(f"[META] Found Invoice date: {invoice_date}")
+                    print(f"[DEBUG] Invoice date: {invoice_date}")
             if total_value is None and "Total excl. VAT" in ln:
                 m = re.search(r"€\s*([\d\.,]+)", ln)
                 if m:
                     raw = m.group(1).replace(",", "")
                     try:
                         total_value = float(raw)
-                        print(f"[META] Found Total excl. VAT: {total_value}")
+                        print(f"[DEBUG] Total excl. VAT: {total_value}")
                     except ValueError:
-                        print(f"[META] Could not parse total from '{raw}'")
                         total_value = None
-            if invoice_num and invoice_date and total_value is not None:
+            if invoice_number and invoice_date and total_value is not None:
                 break
 
-        # 2) Prepare regexes
+        # 3) compile regexes
         whop_re  = re.compile(r"^(whoppah\d{3,})$", re.IGNORECASE)
-        uuid_re  = re.compile(
-            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-            re.IGNORECASE
-        )
         price_re = re.compile(
             r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)"
         )
+        uuid_re  = re.compile(
+            r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+            re.IGNORECASE
+        )
 
-        # 3) Per-page, per-line extraction
-        pdf_stream.seek(0)
-        with pdfplumber.open(pdf_stream) as pdf:
-            for num_page, page in enumerate(pdf.pages):
-                print(f"\n📄 Page {num_page + 1}/{len(pdf.pages)}")
-                lines = [l.strip() for l in (page.extract_text() or "").split("\n") if l.strip()]
-                next_lines = []
-                if num_page + 1 < len(pdf.pages):
-                    next_lines = [l.strip() for l in (pdf.pages[num_page+1].extract_text() or "").split("\n") if l.strip()]
+        data = []
+        current = None
 
-                skip_next = False
-                for i, ln in enumerate(lines):
-                    if skip_next:
-                        print(f"[SKIP] Skipping line {i} (was used for UUID)")
-                        skip_next = False
-                        continue
+        for idx, ln in enumerate(lines):
+            # start a new item when we see a whoppah code
+            wm = whop_re.match(ln)
+            if wm:
+                # flush any in‑progress partial (shouldn't happen)
+                if current:
+                    print(f"[WARN] dropping incomplete item: {current}")
+                current = {
+                    "Invoice number": invoice_number or "",
+                    "Invoice date":   invoice_date,
+                    "order_number":   wm.group(1).lower(),
+                    "Order ID":       None,
+                    "qty":            None,
+                    "unit_price":     None,
+                    "vat":            None,
+                    "price_tadde":    None,
+                }
+                print(f"[DEBUG] ← New item started at line {idx}: {current['order_number']}")
+                continue
 
-                    print(f"[LINE {i}] '{ln}'")
-                    # 3a) detect whoppah code → start a new record
-                    m_wh = whop_re.match(ln)
-                    if m_wh:
-                        current = {
-                            "Invoice number": invoice_num or "",
-                            "Invoice date":   invoice_date,
-                            "order_number":   m_wh.group(1).lower(),
-                            "Order ID":       "",
-                            "qty":            None,
-                            "unit_price":     None,
-                            "vat":            None,
-                            "price_tadde":    None
-                        }
-                        print(f"  ↪️  New item, order_number={current['order_number']}")
-                        continue
+            # if we have an active item and we see a price‑line
+            if current:
+                pm = price_re.match(ln)
+                if pm:
+                    # populate price fields
+                    current["qty"]          = int(pm.group(1))
+                    current["unit_price"]   = float(pm.group(2).replace(",", "."))
+                    current["vat"]          = int(pm.group(3))
+                    current["price_tadde"]  = float(pm.group(4).replace(",", "."))
+                    print(f"[DEBUG]   ↪ price line at {idx}: qty={current['qty']} "
+                          f"unit={current['unit_price']} vat={current['vat']} "
+                          f"total={current['price_tadde']}")
 
-                    # 3b) detect price line → fill in qty/unit/vat/price
-                    pm = price_re.match(ln)
-                    if pm:
-                        if 'current' not in locals():
-                            print(f"  ⚠️  Price line but no current item started")
-                            continue
-                        current["qty"]         = int(pm.group(1))
-                        current["unit_price"]  = float(pm.group(2).replace(",", "."))
-                        current["vat"]         = int(pm.group(3))
-                        current["price_tadde"] = float(pm.group(4).replace(",", "."))
-                        print(f"  ↪️  Parsed price line: qty={current['qty']}, unit_price={current['unit_price']}, vat={current['vat']}, price_tadde={current['price_tadde']}")
-
-                        # 3c) look ahead for UUID
-                        found_uuid = False
-                        for look in range(1, 4):
-                            if i + look < len(lines):
-                                uu_line = lines[i + look]
-                            else:
-                                idx = i + look - len(lines)
-                                uu_line = next_lines[idx] if idx < len(next_lines) else ""
-                            uu = uuid_re.search(uu_line)
+                    # now look *after* for the UUID
+                    found_uuid = False
+                    for j in range(1, 6):
+                        if idx + j < len(lines):
+                            uu = uuid_re.search(lines[idx + j])
                             if uu:
                                 current["Order ID"] = uu.group(0)
-                                print(f"  ↪️  Found UUID on line {i+look}: {current['Order ID']}")
-                                skip_next = True
+                                print(f"[DEBUG]   ↪ found UUID at line {idx+j}: {current['Order ID']}")
                                 found_uuid = True
                                 break
-                        if not found_uuid:
-                            print(f"  ⚠️  Could not find UUID for this price block, skipping item")
-                            del current
-                            continue
 
-                        # 3d) now we have a full record → append and clear
+                    if not found_uuid:
+                        print(f"[WARN]   ↪ no UUID found for item {current['order_number']}")
+
+                    # finally, only append if we have qty, price & Order ID
+                    if current["qty"] is not None and current["price_tadde"] is not None and current["Order ID"]:
                         data.append(current)
-                        print(f"  ✅  Appended item {current}")
-                        del current
-                        continue
+                        print(f"[DEBUG]   ✅ Appended item: {current}")
+                    else:
+                        print(f"[WARN]   ❌ Incomplete item, skipping: {current}")
 
-                    # otherwise, nothing to do
-                    print(f"  —  no match")
+                    # reset for the next
+                    current = None
+                    continue
 
-        # 4) Build DataFrame
+        # 4) build DataFrame
         df = pd.DataFrame(data)
-        if df.empty:
-            raise ValueError("No valid rows extracted from Tadde PDF.")
+        print(f"[DEBUG] Parsed {len(df)} line‑items from invoice")
 
-        # coerce types
-        df["Invoice date"]   = pd.to_datetime(df["Invoice date"], dayfirst=True, errors="coerce").dt.date
-        df["qty"]            = df["qty"].astype(int)
-        df["unit_price"]     = df["unit_price"].astype(float)
-        df["vat"]            = df["vat"].astype(int)
-        df["price_tadde"]    = df["price_tadde"].astype(float)
+        # coerce date
+        if "Invoice date" in df.columns:
+            df["Invoice date"] = pd.to_datetime(
+                df["Invoice date"], dayfirst=True, errors="coerce"
+            ).dt.date
 
-        # 5) Sanity‐check total
+        # 5) sanity check total
         if total_value is not None:
             parsed_sum = round(df["price_tadde"].sum(), 2)
             if abs(parsed_sum - total_value) > 0.01:
-                print(f"[WARN] Total excl. VAT mismatch: reported {total_value} vs parsed {parsed_sum}")
+                print(f"[WARN] Total mismatch: reported {total_value} != parsed {parsed_sum}")
             else:
                 print(f"[OK] Total matches: {parsed_sum}")
-         # *** DEBUG DUMP ***
+        # *** DEBUG DUMP ***
         print("[TADDEParser] final invoice‑DF:")
         print(df.to_string(index=False))
-        
-        # 6) Final validate & return
+        # 6) validate & return
         self.validate(df)
         return df
+
