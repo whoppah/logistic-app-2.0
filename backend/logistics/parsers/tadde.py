@@ -62,6 +62,7 @@ class TaddeParser(BaseParser):
         data = []
         n = len(lines)
         for i, ln in enumerate(lines):
+            print(f"\n [DEBUG] line {i} is {ln}")
             pm = price_re.match(ln)
             if not pm:
                 continue
