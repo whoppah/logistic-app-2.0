@@ -41,8 +41,7 @@ class TaddeParser(BaseParser):
                     print(f"[META] Total excl. VAT:   {total_value}")
             if invoice_number and invoice_date and total_value is not None:
                 break
-
-        # ─── 3) Prepare regexes ─────────────────────────────────────────────────
+        # ─── 3) Prepare for compile  ───────────────────────────────────────────────
         whop_re  = re.compile(r"^(whoppah\d{3,})$", re.IGNORECASE)
         price_re = re.compile(
             r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)"
@@ -114,8 +113,7 @@ class TaddeParser(BaseParser):
                     print(f"  ❌ skipping incomplete {order_number}")
                     i += 1
 
-            # end while page
-        # end for pages
+    
 
         # ─── 5) Build and debug‑dump DataFrame ───────────────────────────────────
         df = pd.DataFrame(data)
@@ -129,13 +127,13 @@ class TaddeParser(BaseParser):
         if total_value is not None:
             s = round(df["price_tadde"].sum(), 2)
             if abs(s - total_value) > 0.01:
-                print(f"[WARN] total mismatch: reported {total_value} vs parsed {s}")
+                print(f"\n [WARN] total mismatch: reported {total_value} vs parsed {s}")
             else:
-                print(f"[OK] Total matches: {s}")
-
-        print("[TADDEParser] final invoice‑DF:")
+                print(f"\n [OK] Total matches: {s}")
+        # ─── 6) DEBUG parsed invoice ───────────────────────────────────────────────
+        print("\n [TADDEParser] final invoice‑DF:")
         print(df.to_string(index=False))
 
-        # ─── 6) Validate & return ───────────────────────────────────────────────
+        # ─── 7) Validate & return ───────────────────────────────────────────────
         self.validate(df)
         return df
