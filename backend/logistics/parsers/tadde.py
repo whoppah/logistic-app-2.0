@@ -10,126 +10,119 @@ class TaddeParser(BaseParser):
     def parse(self, file_bytes: bytes) -> pd.DataFrame:
         """
         Parse a Tadde PDF into a DataFrame of shipment rows, extracting:
-          - Invoice number (str)      → “F-YYYY-NNN”
+          - Invoice number (str)
           - Invoice date   (date)
-          - order_number   (str)      → the 14+ digit reference
+          - order_number   (the whoppahXXX code)
           - Order ID       (UUID)
-          - qty            (int)
-          - unit_price     (float)
-          - vat            (int, %)
-          - price_tadde    (float)    → total excl. VAT
+          - qty (int), unit_price (float), vat (int), price_tadde (float)
         """
-        # 1) extract all lines
-        stream = io.BytesIO(file_bytes)
-        lines = []
-        with pdfplumber.open(stream) as pdf:
+        #Extract all text lines
+        pdf_stream = io.BytesIO(file_bytes)
+        lines: list[str] = []
+        with pdfplumber.open(pdf_stream) as pdf:
             for page in pdf.pages:
-                txt = page.extract_text()
-                if txt:
-                    lines.extend(txt.split("\n"))
+                text = page.extract_text()
+                if text:
+                    # strip BOM/spaces
+                    for ln in text.split("\n"):
+                        lines.append(ln.strip())
 
-        invoice_number = None
-        invoice_date   = None
-        total_value    = None
+        #Pull out invoice metadata (number, date, total)
+        invoice_number: str | None = None
+        invoice_date: date | None   = None
+        total_value: float | None   = None
 
-        # 2) first pass: pull invoice header and total
-        for line in lines:
-            if not invoice_number and "Invoice number" in line:
-                m = re.search(r"Invoice number\s*(F-\d{4}-\d{3})", line)
+        for ln in lines:
+            if not invoice_number:
+                m = re.match(r"Invoice number\s*(F-\d{4}-\d{3})", ln)
                 if m:
                     invoice_number = m.group(1)
-                    print(f"[DEBUG] Invoice number {invoice_number}")
-
-            if not invoice_date and "Issue date" in line:
-                m = re.search(r"Issue date\s*(\d{2}-\d{2}-\d{4})", line)
+            if not invoice_date:
+                m = re.match(r"Issue date\s*(\d{2}-\d{2}-\d{4})", ln)
                 if m:
                     invoice_date = datetime.strptime(m.group(1), "%d-%m-%Y").date()
-                    print(f"[DEBUG] Invoice date {invoice_date}")
-
-            if total_value is None and "Total" in line and "excl. VAT" in line:
-                m = re.search(r"€\s*([\d\.,]+)", line)
+            if total_value is None and "Total excl. VAT" in ln:
+                m = re.search(r"€\s*([\d\.,]+)", ln)
                 if m:
-                    raw = m.group(1).replace(",", "")
+                    raw = m.group(1).replace(".", "").replace(",", ".")
                     try:
                         total_value = float(raw)
-                        print("[DEBUG] total_value is", total_value)
                     except ValueError:
                         total_value = None
-
+            # stop once we have everything
             if invoice_number and invoice_date and total_value is not None:
                 break
 
-        # 3) second pass: find each “N unit €X.YY P % €Z.WW” block
+        #Walk lines to capture each “whoppahXXX” block
         data = []
         i = 0
         while i < len(lines):
-            ln = lines[i].strip().replace("*", "")
-            print("[DEBUG] line:", ln)
-            m = re.match(
-                r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)",
-                ln
-            )
+            ln = lines[i]
+            # match the whoppah code
+            m = re.match(r"^(whoppah\d{3,})$", ln, flags=re.IGNORECASE)
             if m:
-                qty        = int(m.group(1))
-                unit_price = float(m.group(2).replace(",", "."))
-                vat_pct    = int(m.group(3))
-                total_excl = float(m.group(4).replace(",", "."))
+                order_number = m.group(1).lower()
+                # look ahead for UUID and qty‑unit‑price line
+                order_id = ""
+                qty = unit_price = vat_pct = price_tadde = None
 
-                # look ahead for UUID + long reference number
-                order_id     = ""
-                order_number = ""
-                for offset in range(1, 6):
-                    if i + offset >= len(lines):
+                # next few lines
+                for j in range(1, 5):
+                    if i + j >= len(lines):
                         break
-                    nxt = lines[i + offset]
+                    nxt = lines[i + j]
+                    # UUID
                     uu = re.search(
                         r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
                         nxt
                     )
                     if uu and not order_id:
                         order_id = uu.group(0)
-
-                    ref = re.search(r"\b(\d{14,})\b", nxt)
-                    if ref and not order_number:
-                        order_number = ref.group(1)
-
-                    if order_id and order_number:
+                    # qty/unit line
+                    qm = re.match(
+                        r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)",
+                        nxt
+                    )
+                    if qm and qty is None:
+                        qty        = int(qm.group(1))
+                        unit_price = float(qm.group(2).replace(",", "."))
+                        vat_pct    = int(qm.group(3))
+                        price_tadde= float(qm.group(4).replace(",", "."))
                         break
 
-                data.append({
-                    "Invoice number": invoice_number,
-                    "Invoice date":   invoice_date,
-                    "order_number":   order_number,
-                    "Order ID":       order_id,
-                    "qty":            qty,
-                    "unit_price":     unit_price,
-                    "vat":            vat_pct,
-                    "price_tadde":    total_excl,
-                })
-
+                # Only append if we got a price
+                if qty is not None and price_tadde is not None:
+                    data.append({
+                        "Invoice number": invoice_number or "",
+                        "Invoice date":   invoice_date,
+                        "order_number":   order_number,
+                        "Order ID":       order_id,
+                        "qty":            qty,
+                        "unit_price":     unit_price,
+                        "vat":            vat_pct,
+                        "price_tadde":    price_tadde,
+                    })
                 i += 1
                 continue
 
             i += 1
 
+        #Build DataFrame
         df = pd.DataFrame(data)
 
-        # 4) coerce invoice_date column if needed
-        if "Invoice date" in df.columns and df["Invoice date"].dtype == object:
+        # enforce types / rename
+        if "Invoice date" in df:
             df["Invoice date"] = pd.to_datetime(
                 df["Invoice date"], dayfirst=True, errors="coerce"
             ).dt.date
-
-        # 5) sanity‐check total
+        # final total check
         if total_value is not None:
             parsed_sum = round(df["price_tadde"].sum(), 2)
             if abs(parsed_sum - total_value) > 0.01:
-                print(
-                    f"[WARN] Total mismatch: reported {total_value}"
-                    f" != parsed {parsed_sum}"
-                )
+                print(f"[WARN] Total mismatch: reported {total_value} != parsed {parsed_sum}")
             else:
                 print(f"[OK] Total matches: {parsed_sum}")
 
+        #Validation per BaseParser
         self.validate(df)
         return df
