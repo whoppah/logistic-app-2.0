@@ -34,8 +34,6 @@ class TaddeParser(BaseParser):
 
         # 2) first pass: pull invoice header and total
         for line in lines:
-            print("[DEBUG] line:", line)
-
             if not invoice_number and "Invoice number" in line:
                 m = re.search(r"Invoice number\s*(F-\d{4}-\d{3})", line)
                 if m:
@@ -66,6 +64,7 @@ class TaddeParser(BaseParser):
         i = 0
         while i < len(lines):
             ln = lines[i].strip().replace("*", "")
+            print("[DEBUG] line:", ln)
             m = re.match(
                 r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)",
                 ln
