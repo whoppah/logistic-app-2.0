@@ -1,4 +1,4 @@
-# backend/logistics/parsers/tadde.py
+# backend/logistics/parsers/tadde.py 
 import io
 import re
 import pandas as pd
@@ -55,11 +55,11 @@ class TaddeParser(BaseParser):
 
         # ─── 4) Walk through each page in turn ──────────────────────────────────
         for page_idx, lines in enumerate(lines_per_page, start=1):
-            print(f"\n[DEBUG] — parsing page {page_idx}")
+            #print(f"\n[DEBUG] — parsing page {page_idx}")
             i = 0
             while i < len(lines):
                 ln = lines[i]
-                print(f"\n[LINE {i}] {ln}")
+                #print(f"\n[LINE {i}] {ln}")
                 wm = whop_re.match(ln)
                 if not wm:
                     i += 1
@@ -132,8 +132,8 @@ class TaddeParser(BaseParser):
             else:
                 print(f"\n [OK] Total matches: {s}")
         # ─── 6) DEBUG parsed invoice ───────────────────────────────────────────────
-        print("\n [TADDEParser] final invoice‑DF:")
-        print(df.to_string(index=False))
+        # print("\n [TADDEParser] final invoice‑DF:")
+        #print(df.to_string(index=False))
 
         # ─── 7) Validate & return ───────────────────────────────────────────────
         self.validate(df)
