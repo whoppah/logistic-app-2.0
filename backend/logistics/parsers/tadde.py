@@ -1,4 +1,4 @@
-# backend/logistics/parsers/tadde.py 
+# backend/logistics/parsers/tadde.py
 import io
 import re
 import pandas as pd
@@ -6,12 +6,13 @@ import pdfplumber
 from datetime import datetime
 from .base_parser import BaseParser
 
+
 class TaddeParser(BaseParser):
     def parse(self, file_bytes: bytes) -> pd.DataFrame:
         """
         Parse a multi-page Tadde PDF into invoice-line rows.
         """
-        # ─── 1) Read every page and collect lines ─────────────────────────────────
+        # ─── 1) Read every page and collect lines ─────────────────────────────
         lines_per_page = []
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             for page_num, page in enumerate(pdf.pages, start=1):
@@ -20,7 +21,7 @@ class TaddeParser(BaseParser):
                 print(f"[DEBUG] Page {page_num}: {len(page_lines)} lines")
                 lines_per_page.append(page_lines)
 
-        # ─── 2) Flatten all pages to find metadata anywhere ───────────────────────
+        # ─── 2) Extract metadata from all lines ───────────────────────────────
         all_lines = [ln for pg in lines_per_page for ln in pg]
         invoice_number = invoice_date = total_value = None
         for ln in all_lines:
@@ -41,25 +42,20 @@ class TaddeParser(BaseParser):
                     print(f"[META] Total excl. VAT:   {total_value}")
             if invoice_number and invoice_date and total_value is not None:
                 break
-        # ─── 3) Prepare for compile  ───────────────────────────────────────────────
+
+        # ─── 3) Compile data from line blocks ─────────────────────────────────
         whop_re  = re.compile(r"^(whoppah\d{3,})$", re.IGNORECASE)
-        price_re = re.compile(
-            r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)"
-        )
+        price_re = re.compile(r"^(\d+)\s+unit\s+€\s*([\d\.,]+)\s+(\d+)\s+%\s+€\s*([\d\.,]+)")
         uuid_re  = re.compile(
-            r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
-            re.IGNORECASE
+            r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.IGNORECASE
         )
 
         data = []
 
-        # ─── 4) Walk through each page in turn ──────────────────────────────────
         for page_idx, lines in enumerate(lines_per_page, start=1):
-            #print(f"\n[DEBUG] — parsing page {page_idx}")
             i = 0
             while i < len(lines):
                 ln = lines[i]
-                #print(f"\n[LINE {i}] {ln}")
                 wm = whop_re.match(ln)
                 if not wm:
                     i += 1
@@ -67,35 +63,44 @@ class TaddeParser(BaseParser):
                 order_number = wm.group(1).lower()
                 print(f"[PAGE {page_idx}] New item at line {i}: {order_number}")
 
-                # consume that line so we don't rematch it
                 lines[i] = ln[len(wm.group(0)):].strip()
 
-                # look for price on next line
                 qty = unit_price = vat_pct = price_tad = None
-                if i+1 < len(lines):
-                    pm = price_re.match(lines[i+1])
-                    if pm:
-                        qty        = int(pm.group(1))
-                        unit_price = float(pm.group(2).replace(",", "."))
-                        vat_pct    = int(pm.group(3))
-                        price_tad  = float(pm.group(4).replace(",", "."))
-                        print(f"  ↪ price on line {i+1}: qty={qty}, total={price_tad}")
-                    else:
-                        print(f"  ⚠️ price‑line missing after {order_number}")
-
-                # look for UUID in the next up-to-5 lines
                 order_id = None
-                for offset in range(2, 7):
-                    if i+offset < len(lines):
-                        uu = uuid_re.search(lines[i+offset])
-                        if uu:
-                            order_id = uu.group(0)
-                            print(f"  ↪ uuid at line {i+offset}: {order_id}")
-                            break
-                if not order_id:
+                price_found_at = uuid_found_at = None
+
+                for offset in range(1, 6):
+                    if i + offset < len(lines):
+                        line = lines[i + offset]
+
+                        if not order_id:
+                            uu = uuid_re.search(line)
+                            if uu:
+                                order_id = uu.group(0)
+                                uuid_found_at = offset
+
+                        if price_tad is None:
+                            pm = price_re.match(line)
+                            if pm:
+                                qty        = int(pm.group(1))
+                                unit_price = float(pm.group(2).replace(",", "."))
+                                vat_pct    = int(pm.group(3))
+                                price_tad  = float(pm.group(4).replace(",", "."))
+                                price_found_at = offset
+
+                    if order_id and price_tad is not None:
+                        break
+
+                if order_id:
+                    print(f"  ↪ uuid at line {i + uuid_found_at}: {order_id}")
+                else:
                     print(f"  ⚠️ no UUID found for {order_number}")
 
-                # if we have both price and UUID, append
+                if price_tad is not None:
+                    print(f"  ↪ price at line {i + price_found_at}: qty={qty}, total={price_tad}")
+                else:
+                    print(f"  ⚠️ price missing for {order_number}")
+
                 if qty is not None and order_id:
                     data.append({
                         "Invoice number": invoice_number or "",
@@ -108,22 +113,17 @@ class TaddeParser(BaseParser):
                         "price_tadde":    price_tad,
                     })
                     print(f"  ✅ appended {order_number}")
-                    # skip past the block
-                    i += 1 + 1 + offset
+                    i += max(price_found_at or 0, uuid_found_at or 0) + 1
                 else:
                     print(f"  ❌ skipping incomplete {order_number}")
                     i += 1
 
-    
-
-        # ─── 5) Build and debug‑dump DataFrame ───────────────────────────────────
+        # ─── 4) Finalize DataFrame ───────────────────────────────────────────
         df = pd.DataFrame(data)
         print(f"\n[DEBUG] total parsed rows: {len(df)}")
 
         if "Invoice date" in df:
-            df["Invoice date"] = pd.to_datetime(
-                df["Invoice date"], dayfirst=True
-            ).dt.date
+            df["Invoice date"] = pd.to_datetime(df["Invoice date"], dayfirst=True).dt.date
 
         if total_value is not None:
             s = round(df["price_tadde"].sum(), 2)
@@ -131,10 +131,6 @@ class TaddeParser(BaseParser):
                 print(f"\n [WARN] total mismatch: reported {total_value} vs parsed {s}")
             else:
                 print(f"\n [OK] Total matches: {s}")
-        # ─── 6) DEBUG parsed invoice ───────────────────────────────────────────────
-        # print("\n [TADDEParser] final invoice‑DF:")
-        #print(df.to_string(index=False))
 
-        # ─── 7) Validate & return ───────────────────────────────────────────────
         self.validate(df)
         return df
