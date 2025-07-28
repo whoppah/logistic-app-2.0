@@ -18,7 +18,7 @@ from logistics.models import InvoiceRun, InvoiceLine
 class DeltaChecker:
     def __init__(self, db_service=None, spreadsheet_exporter=None):
         self.db_service = db_service or DatabaseService()
-        self.spreadsheet_exporter = spreadsheet_exporter or SpreadsheetExporter()
+        # self.spreadsheet_exporter = spreadsheet_exporter or SpreadsheetExporter()
 
     def evaluate(
         self,
