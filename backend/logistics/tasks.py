@@ -86,8 +86,8 @@ def process_invoice_pipeline(
 
     job = chain(
         load_invoice_bytes.s(redis_key, redis_key_pdf),
-        evaluate_delta.s(partner, delta_threshold),
-        export_sheet.s(partner)
+        evaluate_delta.s(partner, delta_threshold)
+        #export_sheet.s(partner)
     )()
     logger.info("🔗 Dispatched chain, id=%s", job.id)
 
