@@ -58,16 +58,16 @@ def evaluate_delta(ctx: dict, partner: str, delta_threshold: float) -> dict:
         "data":       records,
     }
 
+#Update JSW google oauth
+#@shared_task(name="logistics.tasks.export_sheet")
+#def export_sheet(ctx: dict, partner: str) -> dict:
+#    if "error" in ctx:
+#        return ctx
 
-@shared_task(name="logistics.tasks.export_sheet")
-def export_sheet(ctx: dict, partner: str) -> dict:
-    if "error" in ctx:
-        return ctx
-
-    logger.info("📤 [export_sheet] partner=%s", partner)
-    sheet_url = DeltaChecker().spreadsheet_exporter.spreadsheet.url
-    ctx["sheet_url"] = sheet_url
-    return ctx
+#    logger.info("📤 [export_sheet] partner=%s", partner)
+#    sheet_url = DeltaChecker().spreadsheet_exporter.spreadsheet.url
+#    ctx["sheet_url"] = sheet_url
+#    return ctx
 
 
 @shared_task(bind=True, name="logistics.tasks.process_invoice_pipeline")
