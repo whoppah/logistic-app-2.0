@@ -83,12 +83,28 @@ class MagicMoversDeltaCalculator(BaseDeltaCalculator):
         dims = [row.get(c, 0) for c in ("height", "width", "depth")]
         max_dim = max(dims)
 
+        # Surcharge for specific item types over stools, 2-seaters, armchairs, consoles, dining-chairs, double-beds, vases, dining-tables, sideboard, dressing-tables, liquor-cabinets, decorative-objects, shelving-unit, sideboard-cabinet, wall-cabinet, coffee-tables, modular-sofas, bookcases, table-lamps, swivel-chairs, mirrors, side-chairs, filing-cabinets, chest-of-drawers, floor-lights, side-tables, nightstands, desk, frames
+        chairs_after2=[ "armchairs", "folding-chairs","rocking-chairs","side-chairs", "swivel-chairs","conference-chairs","office-chairs", "adjustable-recliner-chair"]
+
         # example: dining chairs beyond 6
         if "dining-chairs" in cat:
             extra = max(n - 6, 0)
             surcharge += extra * 20
 
-        # …and so on for your other rules…
+        for chair in chairs_after2:
+            if chair in category:
+                extra_chairs = max(n - 2, 0)
+                surcharge += extra_chairs * 20  #  €20 per extra chair after 2
+
+        if "garden-chairs":
+            extra_garden_chairs = max(n -6,0)
+            if extra_garden_chairs !=0:
+                if extra_garden_chairs < 3:
+                    surcharge += extra_garden_chairs *20 
+                elif extra_garden_chairs <4:
+                    surcharge += (extra_garden_chairs -1)*20 +40
+                else:
+                    surcharge += 20+20+40+(extra_garden_chairs-3)*20 # €20 per extra chair after 2, €40 per extra chair nb 3, then €20 per extra chairs
 
         # dimension‐based
         if 200 < max_dim <= 240:
