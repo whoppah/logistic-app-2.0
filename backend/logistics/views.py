@@ -20,7 +20,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseServer
 
 from logistics.models import InvoiceRun, InvoiceLine
 
-from .tasks import load_invoice_bytes, evaluate_delta, export_sheet
+from .tasks import load_invoice_bytes, evaluate_delta#, export_sheet
 from .services.slack_service import SlackService
 from slack_sdk.errors import SlackApiError
 
@@ -74,8 +74,8 @@ class CheckDeltaView(APIView):
         # Build & launch the exact same chain as your wrapper did:
         job = chain(
             load_invoice_bytes.s(redis_key, redis_key_pdf),
-            evaluate_delta.s(partner, delta_threshold),
-            export_sheet.s(partner)
+            evaluate_delta.s(partner, delta_threshold)
+            #export_sheet.s(partner)
         )()
 
         # Return the *chain* ID (i.e. the ID of the last sub-task)
