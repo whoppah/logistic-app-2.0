@@ -157,10 +157,10 @@ class DeltaChecker:
             InvoiceLine.objects.bulk_create(lines)
 
         # 7.  Export to Google Sheets
-        try:
-            sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
-            print(f"✅ Exported to Google Sheets: {sheet_url}")
-        except Exception as e:
-            print(f"⚠️ Failed to export to Google Sheets: {e}")
+        #try:
+         #   sheet_url = self.spreadsheet_exporter.export(df_merged, partner)
+          #  print(f"✅ Exported to Google Sheets: {sheet_url}")
+        #except Exception as e:
+         #   print(f"⚠️ Failed to export to Google Sheets: {e}")
 
         return delta_ok, parsed_flag, df_merged
